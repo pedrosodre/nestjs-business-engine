@@ -55,7 +55,17 @@ export class BusinessEngineService {
 		executionId: string;
 		debug?: DebugStep[];
 	}> {
-		rules.forEach(assertSafeRule);
+		const ids = new Set<string>();
+		for (const rule of rules) {
+			assertSafeRule(rule);
+			if (ids.has(rule.id)) {
+				throw new InvalidRuleError(
+					`Duplicate rule id "${rule.id}"`,
+					rule.id,
+				);
+			}
+			ids.add(rule.id);
+		}
 
 		const executionId = ulid();
 		const context: RunContext = { trace: debug ? [] : undefined };

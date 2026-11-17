@@ -43,4 +43,17 @@ describe('rule validation', () => {
 		expect(error).toBeInstanceOf(InvalidRuleError);
 		expect(({} as any).isAdmin).toBeUndefined();
 	});
+
+	it('rejects duplicate rule ids instead of overwriting results', async () => {
+		const rules = [
+			rule({ id: 'discount', produce: { formula: '10' } }),
+			rule({ id: 'discount', produce: { formula: '20' } }),
+		];
+
+		const error = await service.run(rules, {}).catch(e => e);
+
+		expect(error).toBeInstanceOf(InvalidRuleError);
+		expect(error.ruleId).toBe('discount');
+		expect(error.message).toContain('Duplicate rule id "discount"');
+	});
 });
