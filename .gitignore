@@ -20,3 +20,6 @@ dist
 # local npm credentials and generated debug output
 .npmrc
 debug.json
+
+# api-extractor
+/temp
