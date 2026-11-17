@@ -4,6 +4,17 @@ import jsonata from 'jsonata';
 import sift from 'sift';
 import { Rule } from './types';
 
+/**
+ * sift compiles string `$where` conditions with `new Function`, which would let
+ * anyone who can write a rule run arbitrary code. Rules are data (often stored
+ * in a database), so the operator is disabled.
+ */
+const SAFE_SIFT_OPERATIONS = {
+	$where: () => {
+		throw new Error('The $where operator is not supported in rule conditions');
+	},
+};
+
 @Injectable()
 export class BusinessEngineService {
 	private debugSteps: {
@@ -122,7 +133,9 @@ export class BusinessEngineService {
 		payload: Record<string, unknown>,
 		executionId: string,
 	): boolean {
-		const shouldProduce = !![payload].find(sift(rule.when));
+		const shouldProduce = sift(rule.when, {
+			operations: SAFE_SIFT_OPERATIONS,
+		})(payload);
 
 		this.addDebugStep(executionId, 'Evaluating a rule', {
 			ruleId: rule.id,
