@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ulid } from 'ulid';
+import { randomUUID } from 'node:crypto';
 import jsonata from 'jsonata';
 import sift from 'sift';
 import { InvalidRuleError, RuleEvaluationError } from './errors';
@@ -68,7 +68,7 @@ export class BusinessEngineService {
 			ids.add(rule.id);
 		}
 
-		const executionId = ulid();
+		const executionId = randomUUID();
 		const context: RunContext = { trace: debug ? [] : undefined };
 
 		this.step(context, 'Starting the business engine', {
