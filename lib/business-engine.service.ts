@@ -29,7 +29,7 @@ function assertSafeRule(rule: Rule): void {
 			rule.id,
 		);
 	}
-	for (const transform of rule.transform) {
+	for (const transform of rule.transform ?? []) {
 		if (UNSAFE_KEYS.has(transform.key)) {
 			throw new InvalidRuleError(
 				`Rule "${rule.id}" uses the forbidden transform key "${transform.key}"`,
@@ -119,7 +119,7 @@ export class BusinessEngineService {
 	): Promise<Record<string, unknown>> {
 		const payload: Record<string, unknown> = { ...initialPayload };
 
-		for (const transform of rule.transform) {
+		for (const transform of rule.transform ?? []) {
 			try {
 				payload[transform.key] = await jsonata(transform.formula).evaluate(
 					payload,
@@ -151,7 +151,7 @@ export class BusinessEngineService {
 	): boolean {
 		let shouldProduce: boolean;
 		try {
-			shouldProduce = sift(rule.when, {
+			shouldProduce = sift(rule.when ?? {}, {
 				operations: SAFE_SIFT_OPERATIONS,
 			})(payload);
 		} catch (error) {

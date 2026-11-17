@@ -11,8 +11,10 @@ export type RuleProduce = {
 export type Rule = {
 	id: string;
 	group: string;
-	transform: Array<RuleTransform>;
-	when: Record<string, unknown>;
+	/** Derived values computed in order before the condition. Defaults to none. */
+	transform?: Array<RuleTransform>;
+	/** MongoDB-style condition. Defaults to `{}`, which always matches. */
+	when?: Record<string, unknown>;
 	produce: RuleProduce;
 };
 
