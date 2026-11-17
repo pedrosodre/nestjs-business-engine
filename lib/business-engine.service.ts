@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import sift from 'sift';
+import {
+	BUSINESS_ENGINE_OPTIONS,
+	BusinessEngineOptions,
+} from './business-engine.options';
 import { InvalidRuleError, RuleEvaluationError } from './errors';
 import { DebugStep, Rule, RunOptions, RunResult } from './types';
 import { FormulaCache } from './util/formula.util';
@@ -49,7 +53,15 @@ interface RunContext {
 
 @Injectable()
 export class BusinessEngineService {
-	private readonly formulas = new FormulaCache();
+	private readonly formulas: FormulaCache;
+
+	constructor(
+		@Optional()
+		@Inject(BUSINESS_ENGINE_OPTIONS)
+		private readonly defaults: BusinessEngineOptions = {},
+	) {
+		this.formulas = new FormulaCache(defaults.cacheSize);
+	}
 
 	/**
 	 * Runs the rules against a payload, in order, and returns the result of
@@ -60,8 +72,15 @@ export class BusinessEngineService {
 	>(
 		rules: readonly Rule[],
 		initialPayload: Record<string, unknown>,
-		options: RunOptions = {},
+		runOptions: RunOptions = {},
 	): Promise<RunResult<TResults>> {
+		const options: RunOptions = {
+			...runOptions,
+			timeout: runOptions.timeout ?? this.defaults.timeout,
+			continueOnError:
+				runOptions.continueOnError ?? this.defaults.continueOnError,
+			bindings: { ...this.defaults.bindings, ...runOptions.bindings },
+		};
 		const ids = new Set<string>();
 		for (const rule of rules) {
 			assertSafeRule(rule);
