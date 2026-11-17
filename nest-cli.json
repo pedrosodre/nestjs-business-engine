@@ -1,6 +1,0 @@
-{
-  "collection": "@nestjs/schematics",
-  "sourceRoot": "lib",
-  "entryFile": "repl",
-  "compilerOptions": {}
-}

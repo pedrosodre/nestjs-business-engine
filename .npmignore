@@ -15,6 +15,3 @@ renovate.json
 # ci
 .circleci
 
-# nestjs repl
-dist/repl.js
-dist/repl.d.js

@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BusinessEngineService } from './business-engine.service';
-import { Rule } from './types';
-import { writeFileSync } from 'fs';
+import { BusinessEngineService } from '../../lib/business-engine.service';
+import { Rule } from '../../lib/types';
 
 describe('BusinessEngineService', () => {
 	let service: BusinessEngineService;
@@ -100,11 +99,6 @@ describe('BusinessEngineService', () => {
 			exampleRules,
 			examplePayload,
 			true,
-		);
-
-		writeFileSync(
-			'debug.json',
-			JSON.stringify({ results, executionId, debug }, null, 2),
 		);
 
 		expect(executionId).toBeDefined();

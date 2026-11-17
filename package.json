@@ -2,7 +2,7 @@
   "name": "nestjs-business-engine",
   "version": "0.0.1",
   "description": "Business engine Module for Nest",
-  "author": "Pedro Sodré",
+  "author": "Pedro Sodr\u00e9",
   "license": "MIT",
   "url": "https://github.com/pedrosodre/nestjs-business-engine",
   "scripts": {
@@ -18,7 +18,6 @@
     "test:coverage": "jest --runInBand --coverage",
     "prerelease": "npm run build",
     "release": "npm publish --access=public",
-    "start:dev": "nest start --watch",
     "semantic-release": "semantic-release"
   },
   "dependencies": {
@@ -58,7 +57,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "./lib",
+    "rootDir": ".",
     "testEnvironment": "node",
     "testRegex": ".spec.ts$",
     "transform": {
