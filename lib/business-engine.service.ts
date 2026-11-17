@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ulid } from 'ulid';
 import jsonata from 'jsonata';
 import sift from 'sift';
+import { RuleEvaluationError } from './errors';
 import { Rule } from './types';
 
 /**
@@ -113,9 +114,18 @@ export class BusinessEngineService {
 		const payload: Record<string, unknown> = { ...initialPayload };
 
 		for (const transform of rule.transform) {
-			payload[transform.key] = await jsonata(transform.formula).evaluate(
-				payload,
-			);
+			try {
+				payload[transform.key] = await jsonata(transform.formula).evaluate(
+					payload,
+				);
+			} catch (error) {
+				throw new RuleEvaluationError(
+					rule.id,
+					'transform',
+					error,
+					transform.key,
+				);
+			}
 		}
 
 		this.addDebugStep(executionId, 'Transforming initial payload', {
@@ -133,9 +143,14 @@ export class BusinessEngineService {
 		payload: Record<string, unknown>,
 		executionId: string,
 	): boolean {
-		const shouldProduce = sift(rule.when, {
-			operations: SAFE_SIFT_OPERATIONS,
-		})(payload);
+		let shouldProduce: boolean;
+		try {
+			shouldProduce = sift(rule.when, {
+				operations: SAFE_SIFT_OPERATIONS,
+			})(payload);
+		} catch (error) {
+			throw new RuleEvaluationError(rule.id, 'when', error);
+		}
 
 		this.addDebugStep(executionId, 'Evaluating a rule', {
 			ruleId: rule.id,
@@ -152,7 +167,12 @@ export class BusinessEngineService {
 		payload: Record<string, unknown>,
 		executionId: string,
 	): Promise<unknown> {
-		const result = await jsonata(rule.produce.formula).evaluate(payload);
+		let result: unknown;
+		try {
+			result = await jsonata(rule.produce.formula).evaluate(payload);
+		} catch (error) {
+			throw new RuleEvaluationError(rule.id, 'produce', error);
+		}
 
 		this.addDebugStep(executionId, 'Producing the result', {
 			ruleId: rule.id,
