@@ -15,3 +15,9 @@ export type Rule = {
 	when: Record<string, unknown>;
 	produce: RuleProduce;
 };
+
+/** One entry of the debug trace returned by `run()` when debug is enabled. */
+export type DebugStep = {
+	message: string;
+	context: Record<string, unknown>;
+};

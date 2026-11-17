@@ -3,7 +3,7 @@ import { ulid } from 'ulid';
 import jsonata from 'jsonata';
 import sift from 'sift';
 import { RuleEvaluationError } from './errors';
-import { Rule } from './types';
+import { DebugStep, Rule } from './types';
 
 /**
  * sift compiles string `$where` conditions with `new Function`, which would let
@@ -16,60 +16,26 @@ const SAFE_SIFT_OPERATIONS = {
 	},
 };
 
+/** State of a single `run()` call. Never stored on the service. */
+interface RunContext {
+	trace?: DebugStep[];
+}
+
 @Injectable()
 export class BusinessEngineService {
-	private debugSteps: {
-		[executionId: string]: Array<{
-			message: string;
-			context: Record<string, unknown>;
-		}>;
-	} = {};
-
-	constructor() {}
-
-	private startDebug(executionId: string) {
-		this.debugSteps[executionId] = [];
-	}
-
-	private addDebugStep(
-		executionId: string,
-		message: string,
-		context: Record<string, unknown>,
-	) {
-		if (Array.isArray(this.debugSteps[executionId])) {
-			this.debugSteps[executionId].push({
-				message,
-				context,
-			});
-		}
-	}
-
-	private endDebug(executionId: string) {
-		delete this.debugSteps[executionId];
-	}
-
-	printDebug(executionId: string) {
-		const debugData = this.debugSteps[executionId];
-
-		this.endDebug(executionId);
-
-		return debugData;
-	}
-
 	async run(
 		rules: Array<Rule>,
 		initialPayload: Record<string, unknown>,
 		debug: boolean = false,
-	) {
+	): Promise<{
+		results: Record<string, unknown>;
+		executionId: string;
+		debug?: DebugStep[];
+	}> {
 		const executionId = ulid();
-		// const rules = this.exampleRules.filter(rule => rule.group === groupId);
-		// const initialPayload = this.examplePayload;
+		const context: RunContext = { trace: debug ? [] : undefined };
 
-		if (debug) {
-			this.startDebug(executionId);
-		}
-
-		this.addDebugStep(executionId, 'Starting the business engine', {
+		this.step(context, 'Starting the business engine', {
 			rules,
 			initialPayload,
 		});
@@ -77,39 +43,44 @@ export class BusinessEngineService {
 		const results: Record<string, unknown> = {};
 
 		for (const rule of rules) {
-			this.addDebugStep(executionId, 'Running a single rule', {
+			this.step(context, 'Running a single rule', {
 				ruleId: rule.id,
 				rule,
 			});
 
 			results[rule.id] = rule.produce.default;
 
-			const payload = await this.transform(rule, initialPayload, executionId);
+			const payload = await this.transform(rule, initialPayload, context);
 
-			const shouldProduce = this.evaluate(rule, payload, executionId);
-
-			if (shouldProduce) {
-				const result = await this.produce(rule, payload, executionId);
-				results[rule.id] = result;
+			if (this.evaluate(rule, payload, context)) {
+				results[rule.id] = await this.produce(rule, payload, context);
 			}
 		}
 
-		this.addDebugStep(executionId, 'Returning all results', {
+		this.step(context, 'Returning all results', {
 			results,
 			executionId,
 		});
 
-		if (debug) {
-			return { results, executionId, debug: this.printDebug(executionId) };
+		if (context.trace) {
+			return { results, executionId, debug: context.trace };
 		}
 
 		return { results, executionId };
 	}
 
-	async transform(
+	private step(
+		context: RunContext,
+		message: string,
+		data: Record<string, unknown>,
+	): void {
+		context.trace?.push({ message, context: data });
+	}
+
+	private async transform(
 		rule: Rule,
 		initialPayload: Record<string, unknown>,
-		executionId: string,
+		context: RunContext,
 	): Promise<Record<string, unknown>> {
 		const payload: Record<string, unknown> = { ...initialPayload };
 
@@ -128,7 +99,7 @@ export class BusinessEngineService {
 			}
 		}
 
-		this.addDebugStep(executionId, 'Transforming initial payload', {
+		this.step(context, 'Transforming initial payload', {
 			ruleId: rule.id,
 			transform: rule.transform,
 			initialPayload,
@@ -138,10 +109,10 @@ export class BusinessEngineService {
 		return payload;
 	}
 
-	evaluate(
+	private evaluate(
 		rule: Rule,
 		payload: Record<string, unknown>,
-		executionId: string,
+		context: RunContext,
 	): boolean {
 		let shouldProduce: boolean;
 		try {
@@ -152,7 +123,7 @@ export class BusinessEngineService {
 			throw new RuleEvaluationError(rule.id, 'when', error);
 		}
 
-		this.addDebugStep(executionId, 'Evaluating a rule', {
+		this.step(context, 'Evaluating a rule', {
 			ruleId: rule.id,
 			when: rule.when,
 			payload,
@@ -162,10 +133,10 @@ export class BusinessEngineService {
 		return shouldProduce;
 	}
 
-	async produce(
+	private async produce(
 		rule: Rule,
 		payload: Record<string, unknown>,
-		executionId: string,
+		context: RunContext,
 	): Promise<unknown> {
 		let result: unknown;
 		try {
@@ -174,7 +145,7 @@ export class BusinessEngineService {
 			throw new RuleEvaluationError(rule.id, 'produce', error);
 		}
 
-		this.addDebugStep(executionId, 'Producing the result', {
+		this.step(context, 'Producing the result', {
 			ruleId: rule.id,
 			produce: rule.produce,
 			payload,
