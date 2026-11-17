@@ -10,4 +10,14 @@ describe('run()', () => {
 
 		expect(results).toEqual({ always: 2 });
 	});
+
+	it('uses the default when the produce formula yields nothing', async () => {
+		const rules = [
+			{ id: 'r1', group: 'g', produce: { default: 0, formula: 'missing.field' } },
+		];
+
+		const { results } = await service.run(rules, {});
+
+		expect(results).toEqual({ r1: 0 });
+	});
 });

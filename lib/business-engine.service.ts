@@ -88,7 +88,11 @@ export class BusinessEngineService {
 			const payload = await this.transform(rule, initialPayload, context);
 
 			if (this.evaluate(rule, payload, context)) {
-				results[rule.id] = await this.produce(rule, payload, context);
+				const result = await this.produce(rule, payload, context);
+				// JSONata returns undefined when a path matches nothing.
+				if (result !== undefined) {
+					results[rule.id] = result;
+				}
 			}
 		}
 

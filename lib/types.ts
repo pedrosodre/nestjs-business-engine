@@ -4,6 +4,7 @@ export type RuleTransform = {
 };
 
 export type RuleProduce = {
+	/** Result when the condition does not match or the formula yields nothing. */
 	default?: unknown;
 	formula: string;
 };
