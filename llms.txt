@@ -1,0 +1,81 @@
+# nestjs-business-engine
+
+> Business rules engine for NestJS. Rules are plain data: each rule transforms a payload with JSONata, tests a MongoDB-style condition (sift) and produces a result with a JSONata formula. Node.js >= 22.12, NestJS 11 or 12, CommonJS and ESM.
+
+Install: `npm install nestjs-business-engine` (peer dependencies: @nestjs/common, reflect-metadata).
+
+## Setup
+
+```ts
+import { Module, Injectable } from '@nestjs/common';
+import { BusinessEngineModule, BusinessEngineService, Rule } from 'nestjs-business-engine';
+
+@Module({ imports: [BusinessEngineModule.forRoot({ isGlobal: true, timeout: 100 })] })
+export class AppModule {}
+
+const rules: Rule[] = [
+  {
+    id: 'vip-discount',                 // unique, results are keyed by it
+    group: 'pricing',                   // optional, filter with { group }
+    transform: [{ key: 'total', formula: '$sum(items.(price * quantity))' }], // optional, JSONata, in order
+    when: { total: { $gte: 100 }, 'customer.tier': 'vip' },                  // optional, MongoDB query, {} = always
+    produce: { default: 0, formula: '$round(total * 0.1, 2)' },             // JSONata; default when no match
+  },
+];
+
+@Injectable()
+export class CheckoutService {
+  constructor(private readonly engine: BusinessEngineService) {}
+  quote(order: Record<string, unknown>) {
+    return this.engine.run(rules, order); // { executionId, results: { 'vip-discount': 12.5 }, matched, errors }
+  }
+}
+```
+
+## BusinessEngineService
+
+- `run<TResults>(rules: readonly Rule[], payload: Record<string, unknown>, options?: RunOptions): Promise<RunResult<TResults>>`
+- `validate(rules: unknown): RuleIssue[]` (same as `validateRules`)
+- Can be created without Nest: `new BusinessEngineService(options?)`.
+
+Rule fields: `id: string`, `group?: string`, `enabled?: boolean` (false skips), `transform?: { key, formula }[]`, `when?: object`, `produce: { formula: string; default?: unknown }`. Each rule runs on its own copy of the payload; rules never see each other's results. The result is `default` when the condition fails or the formula yields undefined.
+
+RunOptions:
+- `group?: string | string[]` run only these groups
+- `bindings?: Record<string, unknown>` variables and (async) functions available in formulas as `$name`; merged over module bindings
+- `timeout?: number` max ms per formula; failure code `TIMEOUT`
+- `continueOnError?: boolean` failing rules keep their default and are listed in `errors`
+- `debug?: boolean` return a step-by-step trace in `debug` (contains payload values)
+
+RunResult: `executionId: string` (UUID), `results: TResults`, `matched: string[]` (ids whose condition matched), `errors: RuleEvaluationError[]`, `debug?: DebugStep[]` (`{ message, context }`).
+
+## Module
+
+- `BusinessEngineModule` (defaults), `BusinessEngineModule.forRoot(options)`, `BusinessEngineModule.forRootAsync({ imports?, inject?, useFactory, isGlobal? })`.
+- Options: `isGlobal?`, `bindings?`, `timeout?`, `continueOnError?`, `cacheSize?` (compiled formula LRU size, default 500, 0 disables).
+- Token: `BUSINESS_ENGINE_OPTIONS`.
+
+## Validation
+
+- `validateRules(rules: unknown): RuleIssue[]` with `RuleIssue = { message: string; path: (string | number)[]; ruleId?: string }`. Checks structure, missing/duplicate ids, forbidden keys (`__proto__`, `constructor`, `prototype`), JSONata syntax and `$where`. Empty array = valid.
+- `rulesSchema`: Standard Schema v1 (`rulesSchema['~standard'].validate(value)`) backed by validateRules.
+- `run()` checks structure up front and throws `InvalidRuleError`.
+
+## Errors (all extend BusinessEngineError, which extends Error)
+
+- `InvalidRuleError`: `issues: RuleIssue[]`, `ruleId?`. Thrown before any rule runs.
+- `RuleEvaluationError`: `ruleId`, `stage: 'transform' | 'when' | 'produce'`, `key?` (transform key), `code?` (JSONata code such as `S0207`, `T1006`, or `TIMEOUT`), `position?`, `cause`.
+- `FormulaTimeoutError`: `code: 'TIMEOUT'`, `timeout`. The cause of a RuleEvaluationError on timeout.
+
+## Security notes
+
+- sift `$where` is disabled (it would run JavaScript). JSONata cannot reach Node.js APIs.
+- Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever.
+- Bindings are trusted application code.
+
+## Links
+
+- README: https://github.com/pedrosodre/nestjs-business-engine#readme
+- JSONata: https://docs.jsonata.org
+- Query operators (sift): https://github.com/crcn/sift.js
+- Issues: https://github.com/pedrosodre/nestjs-business-engine/issues
