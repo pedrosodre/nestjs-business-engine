@@ -1,6 +1,12 @@
 {
-  "trailingComma": "all",
-  "singleQuote": true,
-  "arrowParens": "avoid",
-  "useTabs": true
+	"trailingComma": "all",
+	"singleQuote": true,
+	"arrowParens": "avoid",
+	"useTabs": true,
+	"overrides": [
+		{
+			"files": ["*.json"],
+			"options": { "useTabs": false, "tabWidth": 2 }
+		}
+	]
 }

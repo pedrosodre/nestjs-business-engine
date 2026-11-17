@@ -84,18 +84,18 @@ To customize module's configuration, you can setup few options by importing it u
 
 To keep everything as flexible as possible, `ExtendedConfigModule` works with an array of strategies, that are specialized objects in load environment variables. Each strategy has its own options, as described below:
 
-| Option             | Default value | Required | Type                  | Description                                                                                                                     |
+| Option | Default value | Required | Type | Description |
 | ------------------ | ------------- | -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `loader`           | -             | `true`   | `LoaderClass          | LoaderMethod`                                                                                                                   | Class or function responsible for loading environment variables for this strategy. Accepts a custom function or class with load() method.                 |
-| `identifier`       | -             | `false`  | `string               | Symbol`                                                                                                                         | Identify a strategy to allow module to manipulate it directly on helper functions.                                                                        |
-| `disable`          | `false`       | `false`  | `boolean`             | If `true`, this strategy will not used. This flag is useful to perform conditional strategy disabling.                          |
-| `options`          | -             | `false`  | `Record<string, any>` | Set options to loader class or function.                                                                                        |
-| `reloadable`       | `false`       | `false`  | `boolean`             | If `false`, this strategy will not be called again when service or scheduler requests a reload.                                 |
-| `schedule`         | -             | `false`  | `string`              | Schedules the strategy reload (if reloadable) using cron syntax. This feature may not work correctly with serverless functions. |
-| `scheduleTimezone` | -             | `false`  | `Timezone`            | Set scheduler timezone.                                                                                                         |
-| `registerAs`       | -             | `false`  | `string`              | If set, all configuration will be set under the key passed on this variable.                                                    |
-| `transformer`      | -             | `false`  | `TransformerClass     | TransformerMethod`                                                                                                              | If you wish to transform the loaded configuration variables, you can pass a function to handle it. Accepts a function or a class with transform() method. |
-| `validator`        | -             | `false`  | `ValidatorClass       | ValidatorMethod`                                                                                                                | If you wish to transform the loaded configuration variables, you can pass a function to handle it. Accepts a function or a class with validate() method.  |
+| `loader` | - | `true` | `LoaderClass          | LoaderMethod` | Class or function responsible for loading environment variables for this strategy. Accepts a custom function or class with load() method. |
+| `identifier` | - | `false` | `string               | Symbol` | Identify a strategy to allow module to manipulate it directly on helper functions. |
+| `disable` | `false` | `false` | `boolean` | If `true`, this strategy will not used. This flag is useful to perform conditional strategy disabling. |
+| `options` | - | `false` | `Record<string, any>` | Set options to loader class or function. |
+| `reloadable` | `false` | `false` | `boolean` | If `false`, this strategy will not be called again when service or scheduler requests a reload. |
+| `schedule` | - | `false` | `string` | Schedules the strategy reload (if reloadable) using cron syntax. This feature may not work correctly with serverless functions. |
+| `scheduleTimezone` | - | `false` | `Timezone` | Set scheduler timezone. |
+| `registerAs` | - | `false` | `string` | If set, all configuration will be set under the key passed on this variable. |
+| `transformer` | - | `false` | `TransformerClass     | TransformerMethod` | If you wish to transform the loaded configuration variables, you can pass a function to handle it. Accepts a function or a class with transform() method. |
+| `validator` | - | `false` | `ValidatorClass       | ValidatorMethod` | If you wish to transform the loaded configuration variables, you can pass a function to handle it. Accepts a function or a class with validate() method. |
 
 #### Pre-made loaders
 

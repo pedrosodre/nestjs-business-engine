@@ -12,7 +12,11 @@ describe('timeout', () => {
 	it('stops a runaway produce formula', async () => {
 		const started = Date.now();
 		const error = await service
-			.run([{ id: 'loop', produce: { formula: infiniteLoop } }], {}, { timeout: 50 })
+			.run(
+				[{ id: 'loop', produce: { formula: infiniteLoop } }],
+				{},
+				{ timeout: 50 },
+			)
 			.catch(e => e);
 
 		expect(error).toBeInstanceOf(RuleEvaluationError);
@@ -26,7 +30,13 @@ describe('timeout', () => {
 	it('stops a runaway transform formula', async () => {
 		const error = await service
 			.run(
-				[{ id: 'loop', transform: [{ key: 'x', formula: infiniteLoop }], produce: { formula: 'x' } }],
+				[
+					{
+						id: 'loop',
+						transform: [{ key: 'x', formula: infiniteLoop }],
+						produce: { formula: 'x' },
+					},
+				],
 				{},
 				{ timeout: 20 },
 			)
@@ -46,9 +56,15 @@ describe('timeout', () => {
 	});
 
 	it('applies the timeout per run, not per compiled formula', async () => {
-		const rules = [{ id: 'loop', produce: { default: 'stopped', formula: infiniteLoop } }];
+		const rules = [
+			{ id: 'loop', produce: { default: 'stopped', formula: infiniteLoop } },
+		];
 		await service.run(rules, {}, { timeout: 10, continueOnError: true });
-		const second = await service.run(rules, {}, { timeout: 10, continueOnError: true });
+		const second = await service.run(
+			rules,
+			{},
+			{ timeout: 10, continueOnError: true },
+		);
 		expect(second.results).toEqual({ loop: 'stopped' });
 		expect(second.errors[0].code).toBe('TIMEOUT');
 	});

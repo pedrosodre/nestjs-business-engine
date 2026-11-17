@@ -57,7 +57,10 @@ describe('errors', () => {
 
 	describe('continueOnError', () => {
 		const rules = [
-			rule({ id: 'broken', produce: { default: -1, formula: '$unknownFunction()' } }),
+			rule({
+				id: 'broken',
+				produce: { default: -1, formula: '$unknownFunction()' },
+			}),
 			rule({ id: 'fine', produce: { formula: '42' } }),
 		];
 
@@ -68,9 +71,13 @@ describe('errors', () => {
 		});
 
 		it('keeps the default of failed rules and reports their errors', async () => {
-			const { results, matched, errors } = await service.run(rules, {}, {
-				continueOnError: true,
-			});
+			const { results, matched, errors } = await service.run(
+				rules,
+				{},
+				{
+					continueOnError: true,
+				},
+			);
 
 			expect(results).toEqual({ broken: -1, fine: 42 });
 			expect(matched).toEqual(['fine']);

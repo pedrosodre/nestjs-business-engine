@@ -13,7 +13,11 @@ describe('run()', () => {
 
 	it('uses the default when the produce formula yields nothing', async () => {
 		const rules = [
-			{ id: 'r1', group: 'g', produce: { default: 0, formula: 'missing.field' } },
+			{
+				id: 'r1',
+				group: 'g',
+				produce: { default: 0, formula: 'missing.field' },
+			},
 		];
 
 		const { results } = await service.run(rules, {});
@@ -68,9 +72,13 @@ describe('run()', () => {
 		});
 
 		it('runs the rules of several groups', async () => {
-			const { results } = await service.run(rules, {}, {
-				group: ['pricing', 'shipping'],
-			});
+			const { results } = await service.run(
+				rules,
+				{},
+				{
+					group: ['pricing', 'shipping'],
+				},
+			);
 			expect(results).toEqual({ a: 1, b: 2 });
 		});
 	});
@@ -105,8 +113,16 @@ describe('run()', () => {
 	it('lists the rules whose condition matched', async () => {
 		const { results, matched } = await service.run(
 			[
-				{ id: 'big', when: { total: { $gt: 100 } }, produce: { default: false, formula: 'true' } },
-				{ id: 'small', when: { total: { $lte: 100 } }, produce: { default: false, formula: 'true' } },
+				{
+					id: 'big',
+					when: { total: { $gt: 100 } },
+					produce: { default: false, formula: 'true' },
+				},
+				{
+					id: 'small',
+					when: { total: { $lte: 100 } },
+					produce: { default: false, formula: 'true' },
+				},
 				{ id: 'any', produce: { formula: 'total' } },
 			],
 			{ total: 50 },

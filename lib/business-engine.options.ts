@@ -29,14 +29,17 @@ export interface BusinessEngineModuleOptions extends BusinessEngineOptions {
 }
 
 /** Options of `BusinessEngineModule.forRootAsync()`. */
-export interface BusinessEngineModuleAsyncOptions
-	extends Pick<ModuleMetadata, 'imports'> {
+export interface BusinessEngineModuleAsyncOptions extends Pick<
+	ModuleMetadata,
+	'imports'
+> {
 	/** Register the module globally. Defaults to `false`. */
 	isGlobal?: boolean;
 	/** Providers injected into `useFactory`. */
 	inject?: Array<InjectionToken | OptionalFactoryDependency>;
 	/** Returns the options, possibly asynchronously. */
 	useFactory: (
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches Nest's FactoryProvider
 		...args: any[]
 	) => BusinessEngineOptions | Promise<BusinessEngineOptions>;
 }

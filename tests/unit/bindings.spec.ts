@@ -29,7 +29,11 @@ describe('bindings', () => {
 		const { results } = await service.run(
 			[{ id: 'rate', produce: { formula: '$lookupRate(currency)' } }],
 			{ currency: 'EUR' },
-			{ bindings: { lookupRate: async (code: string) => (code === 'EUR' ? 1.1 : 1) } },
+			{
+				bindings: {
+					lookupRate: async (code: string) => (code === 'EUR' ? 1.1 : 1),
+				},
+			},
 		);
 
 		expect(results).toEqual({ rate: 1.1 });

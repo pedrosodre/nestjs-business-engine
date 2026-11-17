@@ -21,7 +21,11 @@ describe('BusinessEngineModule', () => {
 		}).compile();
 
 		const service = moduleRef.get(BusinessEngineService);
-		const { results } = await service.run(rules, { net: 10 }, { bindings: { vat: 0.1 } });
+		const { results } = await service.run(
+			rules,
+			{ net: 10 },
+			{ bindings: { vat: 0.1 } },
+		);
 
 		expect(results).toEqual({ gross: 11 });
 	});
@@ -38,12 +42,17 @@ describe('BusinessEngineModule', () => {
 		}).compile();
 		const service = moduleRef.get(BusinessEngineService);
 
-		expect((await service.run(rules, { net: 10 })).results).toEqual({ gross: 12 });
+		expect((await service.run(rules, { net: 10 })).results).toEqual({
+			gross: 12,
+		});
 		expect(
-			(await service.run(rules, { net: 10 }, { bindings: { vat: 0.5 } })).results,
+			(await service.run(rules, { net: 10 }, { bindings: { vat: 0.5 } }))
+				.results,
 		).toEqual({ gross: 15 });
 
-		const broken = [{ id: 'broken', produce: { default: 0, formula: '$nope()' } }];
+		const broken = [
+			{ id: 'broken', produce: { default: 0, formula: '$nope()' } },
+		];
 		const { errors } = await service.run(broken, {});
 		expect(errors).toHaveLength(1);
 		await expect(
@@ -57,12 +66,16 @@ describe('BusinessEngineModule', () => {
 				BusinessEngineModule.forRootAsync({
 					imports: [TaxModule],
 					inject: [TaxService],
-					useFactory: async (tax: TaxService) => ({ bindings: { vat: tax.vat } }),
+					useFactory: async (tax: TaxService) => ({
+						bindings: { vat: tax.vat },
+					}),
 				}),
 			],
 		}).compile();
 
-		const { results } = await moduleRef.get(BusinessEngineService).run(rules, { net: 10 });
+		const { results } = await moduleRef
+			.get(BusinessEngineService)
+			.run(rules, { net: 10 });
 		expect(results).toEqual({ gross: 12.5 });
 	});
 
@@ -76,9 +89,14 @@ describe('BusinessEngineModule', () => {
 		class FeatureModule {}
 
 		const moduleRef = await Test.createTestingModule({
-			imports: [BusinessEngineModule.forRoot({ isGlobal: true }), FeatureModule],
+			imports: [
+				BusinessEngineModule.forRoot({ isGlobal: true }),
+				FeatureModule,
+			],
 		}).compile();
 
-		expect(moduleRef.get(Consumer).engine).toBeInstanceOf(BusinessEngineService);
+		expect(moduleRef.get(Consumer).engine).toBeInstanceOf(
+			BusinessEngineService,
+		);
 	});
 });

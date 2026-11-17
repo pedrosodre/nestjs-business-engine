@@ -22,14 +22,23 @@ describe('validateRules()', () => {
 	});
 
 	it('rejects a value that is not an array', () => {
-		expect(validateRules({})).toEqual([{ message: 'Rules must be an array', path: [] }]);
+		expect(validateRules({})).toEqual([
+			{ message: 'Rules must be an array', path: [] },
+		]);
 	});
 
 	it('reports structural problems with their path', () => {
 		const issues = validateRules([
 			null,
 			{ produce: { formula: '1' } },
-			{ id: 'r', group: 1, enabled: 'yes', transform: {}, when: [], produce: 'x' },
+			{
+				id: 'r',
+				group: 1,
+				enabled: 'yes',
+				transform: {},
+				when: [],
+				produce: 'x',
+			},
 			{ id: 't', transform: [null, { formula: 1 }], produce: { formula: '1' } },
 		]);
 
@@ -42,30 +51,55 @@ describe('validateRules()', () => {
 			[[2, 'when'], 'Rule "r": when must be an object'],
 			[[2, 'produce'], 'Rule "r" must have a produce object'],
 			[[3, 'transform', 0], 'Rule "t": transform 0 must be an object'],
-			[[3, 'transform', 1, 'key'], 'Rule "t": transform 1 must have a non-empty string key'],
-			[[3, 'transform', 1, 'formula'], 'Rule "t": transform 1 formula must be a string'],
+			[
+				[3, 'transform', 1, 'key'],
+				'Rule "t": transform 1 must have a non-empty string key',
+			],
+			[
+				[3, 'transform', 1, 'formula'],
+				'Rule "t": transform 1 formula must be a string',
+			],
 		]);
 	});
 
 	it('reports invalid formulas, unsafe keys, duplicates and $where', () => {
 		const issues = validateRules([
-			{ id: 'a', transform: [{ key: '__proto__', formula: '1 +' }], produce: { formula: '1' } },
-			{ id: 'a', when: { x: { $elemMatch: { $where: 'true' } } }, produce: { formula: '(' } },
+			{
+				id: 'a',
+				transform: [{ key: '__proto__', formula: '1 +' }],
+				produce: { formula: '1' },
+			},
+			{
+				id: 'a',
+				when: { x: { $elemMatch: { $where: 'true' } } },
+				produce: { formula: '(' },
+			},
 		]);
 
 		expect(issues).toEqual([
-			{ ruleId: 'a', path: [0, 'transform', 0, 'key'], message: 'Rule "a" uses the forbidden transform key "__proto__"' },
+			{
+				ruleId: 'a',
+				path: [0, 'transform', 0, 'key'],
+				message: 'Rule "a" uses the forbidden transform key "__proto__"',
+			},
 			{
 				ruleId: 'a',
 				path: [0, 'transform', 0, 'formula'],
-				message: 'Rule "a": transform 0 formula is invalid at position 3: Unexpected end of expression',
+				message:
+					'Rule "a": transform 0 formula is invalid at position 3: Unexpected end of expression',
 			},
 			{ ruleId: 'a', path: [1, 'id'], message: 'Duplicate rule id "a"' },
-			{ ruleId: 'a', path: [1, 'when'], message: 'Rule "a": the $where operator is not supported' },
+			{
+				ruleId: 'a',
+				path: [1, 'when'],
+				message: 'Rule "a": the $where operator is not supported',
+			},
 			{
 				ruleId: 'a',
 				path: [1, 'produce', 'formula'],
-				message: expect.stringContaining('Rule "a": produce formula is invalid'),
+				message: expect.stringContaining(
+					'Rule "a": produce formula is invalid',
+				),
 			},
 		]);
 	});
@@ -85,7 +119,9 @@ describe('rulesSchema', () => {
 		expect(await standard.validate(rules)).toEqual({ value: rules });
 
 		const failure = await standard.validate([{ id: 'a' }]);
-		expect(failure.issues?.[0].message).toBe('Rule "a" must have a produce object');
+		expect(failure.issues?.[0].message).toBe(
+			'Rule "a" must have a produce object',
+		);
 	});
 });
 

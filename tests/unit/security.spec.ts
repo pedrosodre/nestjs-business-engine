@@ -25,7 +25,11 @@ describe('condition security', () => {
 			id: 'evil',
 			group: 'g',
 			transform: [],
-			when: { a: { $elemMatch: { $where: '(globalThis.__businessEnginePwned = true)' } } },
+			when: {
+				a: {
+					$elemMatch: { $where: '(globalThis.__businessEnginePwned = true)' },
+				},
+			},
 			produce: { formula: '1' },
 		};
 

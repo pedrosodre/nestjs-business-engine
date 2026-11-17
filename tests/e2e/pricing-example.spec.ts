@@ -13,7 +13,10 @@ describe('pricing example', () => {
 					key: 'totalAirlinePrice',
 					formula: '$sum(thirdPartyOffers[type="airline"].unitPrices.price)',
 				},
-				{ key: 'airlinePercentage', formula: '1 - (totalPrice / totalAirlinePrice)' },
+				{
+					key: 'airlinePercentage',
+					formula: '1 - (totalPrice / totalAirlinePrice)',
+				},
 			],
 			when: {
 				unitPrices: { $elemMatch: { type: 'ADT', price: { $gt: 100 } } },
@@ -70,7 +73,9 @@ describe('pricing example', () => {
 	it('explains each step in the debug trace', async () => {
 		const { debug } = await service.run(rules, offer(104.4), { debug: true });
 
-		const evaluation = debug?.find(step => step.message === 'Evaluating a rule');
+		const evaluation = debug?.find(
+			step => step.message === 'Evaluating a rule',
+		);
 		expect(evaluation?.context).toMatchObject({
 			ruleId: 'airline-discount',
 			shouldProduce: true,
