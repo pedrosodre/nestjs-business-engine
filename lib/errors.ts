@@ -67,3 +67,14 @@ function describeCause(cause: unknown): {
 	}
 	return { message: String(cause) };
 }
+
+/** Thrown before evaluation when a rule is malformed or unsafe. */
+export class InvalidRuleError extends BusinessEngineError {
+	/** Id of the invalid rule, when it has one. */
+	readonly ruleId?: string;
+
+	constructor(message: string, ruleId?: string) {
+		super(message);
+		this.ruleId = ruleId;
+	}
+}

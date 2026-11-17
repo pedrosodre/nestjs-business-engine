@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ulid } from 'ulid';
 import jsonata from 'jsonata';
 import sift from 'sift';
-import { RuleEvaluationError } from './errors';
+import { InvalidRuleError, RuleEvaluationError } from './errors';
 import { DebugStep, Rule } from './types';
 
 /**
@@ -15,6 +15,29 @@ const SAFE_SIFT_OPERATIONS = {
 		throw new Error('The $where operator is not supported in rule conditions');
 	},
 };
+
+/**
+ * Keys that would change an object's prototype instead of creating a property.
+ * Rule ids and transform keys become property names, so they are rejected.
+ */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function assertSafeRule(rule: Rule): void {
+	if (UNSAFE_KEYS.has(rule.id)) {
+		throw new InvalidRuleError(
+			`Rule id "${rule.id}" is not allowed`,
+			rule.id,
+		);
+	}
+	for (const transform of rule.transform) {
+		if (UNSAFE_KEYS.has(transform.key)) {
+			throw new InvalidRuleError(
+				`Rule "${rule.id}" uses the forbidden transform key "${transform.key}"`,
+				rule.id,
+			);
+		}
+	}
+}
 
 /** State of a single `run()` call. Never stored on the service. */
 interface RunContext {
@@ -32,6 +55,8 @@ export class BusinessEngineService {
 		executionId: string;
 		debug?: DebugStep[];
 	}> {
+		rules.forEach(assertSafeRule);
+
 		const executionId = ulid();
 		const context: RunContext = { trace: debug ? [] : undefined };
 
