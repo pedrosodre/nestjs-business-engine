@@ -4,6 +4,7 @@ import jsonata from 'jsonata';
 import sift from 'sift';
 import { InvalidRuleError, RuleEvaluationError } from './errors';
 import { DebugStep, Rule } from './types';
+import { toPlainValue } from './util/normalize.util';
 
 /**
  * sift compiles string `$where` conditions with `new Function`, which would let
@@ -125,8 +126,8 @@ export class BusinessEngineService {
 
 		for (const transform of rule.transform ?? []) {
 			try {
-				payload[transform.key] = await jsonata(transform.formula).evaluate(
-					payload,
+				payload[transform.key] = toPlainValue(
+					await jsonata(transform.formula).evaluate(payload),
 				);
 			} catch (error) {
 				throw new RuleEvaluationError(
@@ -179,7 +180,9 @@ export class BusinessEngineService {
 	): Promise<unknown> {
 		let result: unknown;
 		try {
-			result = await jsonata(rule.produce.formula).evaluate(payload);
+			result = toPlainValue(
+				await jsonata(rule.produce.formula).evaluate(payload),
+			);
 		} catch (error) {
 			throw new RuleEvaluationError(rule.id, 'produce', error);
 		}
