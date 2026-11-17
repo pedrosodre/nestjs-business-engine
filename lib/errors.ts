@@ -78,3 +78,19 @@ export class InvalidRuleError extends BusinessEngineError {
 		this.ruleId = ruleId;
 	}
 }
+
+/**
+ * Thrown (as the `cause` of a RuleEvaluationError) when a formula runs longer
+ * than the configured timeout.
+ */
+export class FormulaTimeoutError extends BusinessEngineError {
+	/** Always `TIMEOUT`. */
+	readonly code = 'TIMEOUT';
+
+	constructor(
+		/** The timeout that was exceeded, in milliseconds. */
+		readonly timeout: number,
+	) {
+		super(`Formula evaluation exceeded the ${timeout} ms timeout`);
+	}
+}

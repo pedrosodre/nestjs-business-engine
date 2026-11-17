@@ -44,6 +44,7 @@ function assertSafeRule(rule: Rule): void {
 interface RunContext {
 	trace?: DebugStep[];
 	bindings?: Record<string, unknown>;
+	timeout?: number;
 }
 
 @Injectable()
@@ -77,6 +78,7 @@ export class BusinessEngineService {
 		const context: RunContext = {
 			trace: options.debug ? [] : undefined,
 			bindings: options.bindings,
+			timeout: options.timeout,
 		};
 		const groups =
 			options.group === undefined
@@ -177,9 +179,7 @@ export class BusinessEngineService {
 		for (const transform of rule.transform ?? []) {
 			try {
 				payload[transform.key] = toPlainValue(
-					await this.formulas
-						.compile(transform.formula)
-						.evaluate(payload, context.bindings),
+					await this.formulas.evaluate(transform.formula, payload, context),
 				);
 			} catch (error) {
 				throw new RuleEvaluationError(
@@ -233,9 +233,7 @@ export class BusinessEngineService {
 		let result: unknown;
 		try {
 			result = toPlainValue(
-				await this.formulas
-					.compile(rule.produce.formula)
-					.evaluate(payload, context.bindings),
+				await this.formulas.evaluate(rule.produce.formula, payload, context),
 			);
 		} catch (error) {
 			throw new RuleEvaluationError(rule.id, 'produce', error);

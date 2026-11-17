@@ -48,6 +48,13 @@ export type RunOptions = {
 	 * Invalid rules (`InvalidRuleError`) are always rejected. Defaults to `false`.
 	 */
 	continueOnError?: boolean;
+	/**
+	 * Maximum duration of each formula evaluation, in milliseconds. A formula
+	 * that runs longer fails with a RuleEvaluationError whose code is
+	 * `TIMEOUT`. Protects against runaway formulas such as infinite
+	 * recursion. Defaults to no limit.
+	 */
+	timeout?: number;
 };
 
 /** What `run()` resolves to. */
