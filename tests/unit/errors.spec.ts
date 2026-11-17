@@ -54,4 +54,40 @@ describe('errors', () => {
 		expect(error.stage).toBe('when');
 		expect(error.cause).toBeInstanceOf(Error);
 	});
+
+	describe('continueOnError', () => {
+		const rules = [
+			rule({ id: 'broken', produce: { default: -1, formula: '$unknownFunction()' } }),
+			rule({ id: 'fine', produce: { formula: '42' } }),
+		];
+
+		it('rejects the run by default', async () => {
+			await expect(service.run(rules, {})).rejects.toBeInstanceOf(
+				RuleEvaluationError,
+			);
+		});
+
+		it('keeps the default of failed rules and reports their errors', async () => {
+			const { results, matched, errors } = await service.run(rules, {}, {
+				continueOnError: true,
+			});
+
+			expect(results).toEqual({ broken: -1, fine: 42 });
+			expect(matched).toEqual(['fine']);
+			expect(errors).toHaveLength(1);
+			expect(errors[0]).toBeInstanceOf(RuleEvaluationError);
+			expect(errors[0].ruleId).toBe('broken');
+		});
+
+		it('still rejects invalid rules', async () => {
+			await expect(
+				service.run([rule({ id: '__proto__' })], {}, { continueOnError: true }),
+			).rejects.toThrow('not allowed');
+		});
+
+		it('returns an empty error list when nothing fails', async () => {
+			const { errors } = await service.run([rule({})], {});
+			expect(errors).toEqual([]);
+		});
+	});
 });

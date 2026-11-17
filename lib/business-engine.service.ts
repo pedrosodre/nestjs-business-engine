@@ -92,6 +92,7 @@ export class BusinessEngineService {
 
 		const results: Record<string, unknown> = {};
 		const matched: string[] = [];
+		const errors: RuleEvaluationError[] = [];
 
 		for (const rule of rules) {
 			if (rule.enabled === false || (groups && !groups.has(rule.group))) {
@@ -105,15 +106,24 @@ export class BusinessEngineService {
 
 			results[rule.id] = rule.produce.default;
 
-			const payload = await this.transform(rule, initialPayload, context);
-
-			if (this.evaluate(rule, payload, context)) {
-				matched.push(rule.id);
-				const result = await this.produce(rule, payload, context);
-				// JSONata returns undefined when a path matches nothing.
-				if (result !== undefined) {
-					results[rule.id] = result;
+			try {
+				const outcome = await this.runRule(rule, initialPayload, context);
+				if (outcome.matched) {
+					matched.push(rule.id);
+					// JSONata returns undefined when a path matches nothing.
+					if (outcome.result !== undefined) {
+						results[rule.id] = outcome.result;
+					}
 				}
+			} catch (error) {
+				if (!options.continueOnError || !(error instanceof RuleEvaluationError)) {
+					throw error;
+				}
+				errors.push(error);
+				this.step(context, 'Rule failed, keeping its default', {
+					ruleId: rule.id,
+					error: error.message,
+				});
 			}
 		}
 
@@ -126,11 +136,27 @@ export class BusinessEngineService {
 			executionId,
 			results: results as TResults,
 			matched,
+			errors,
 		};
 		if (context.trace) {
 			output.debug = context.trace;
 		}
 		return output;
+	}
+
+	private async runRule(
+		rule: Rule,
+		initialPayload: Record<string, unknown>,
+		context: RunContext,
+	): Promise<{ matched: boolean; result?: unknown }> {
+		const payload = await this.transform(rule, initialPayload, context);
+		if (!this.evaluate(rule, payload, context)) {
+			return { matched: false };
+		}
+		return {
+			matched: true,
+			result: await this.produce(rule, payload, context),
+		};
 	}
 
 	private step(

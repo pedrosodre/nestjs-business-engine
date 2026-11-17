@@ -1,3 +1,5 @@
+import type { RuleEvaluationError } from './errors';
+
 /** A derived value computed by a JSONata formula before the condition runs. */
 export type RuleTransform = {
 	/** Payload key that receives the value. Later transforms can read it. */
@@ -40,6 +42,12 @@ export type RunOptions = {
 	 * example `{ vat: 0.2, round: (n: number) => Math.round(n) }`.
 	 */
 	bindings?: Record<string, unknown>;
+	/**
+	 * When `true`, a rule that fails keeps its default and the error is
+	 * reported in `RunResult.errors` instead of rejecting the whole run.
+	 * Invalid rules (`InvalidRuleError`) are always rejected. Defaults to `false`.
+	 */
+	continueOnError?: boolean;
 };
 
 /** What `run()` resolves to. */
@@ -50,6 +58,8 @@ export type RunResult<TResults extends Record<string, unknown> = Record<string, 
 	results: TResults;
 	/** Ids of the rules whose condition matched, in execution order. */
 	matched: string[];
+	/** Failures of individual rules. Only filled when `continueOnError` is `true`. */
+	errors: RuleEvaluationError[];
 	/** Step-by-step trace, only when `RunOptions.debug` is `true`. */
 	debug?: DebugStep[];
 };
