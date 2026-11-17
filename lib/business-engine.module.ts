@@ -28,7 +28,9 @@ export class BusinessEngineModule {
 		};
 	}
 
-	static forRootAsync(options: BusinessEngineModuleAsyncOptions): DynamicModule {
+	static forRootAsync(
+		options: BusinessEngineModuleAsyncOptions,
+	): DynamicModule {
 		return {
 			module: BusinessEngineModule,
 			global: options.isGlobal,

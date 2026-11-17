@@ -9,6 +9,7 @@ import { InvalidRuleError, RuleEvaluationError } from './errors';
 import { DebugStep, Rule, RunOptions, RunResult } from './types';
 import { FormulaCache } from './util/formula.util';
 import { toPlainValue } from './util/normalize.util';
+import { checkRules, RuleIssue, validateRules } from './validation';
 
 /**
  * sift compiles string `$where` conditions with `new Function`, which would let
@@ -20,29 +21,6 @@ const SAFE_SIFT_OPERATIONS = {
 		throw new Error('The $where operator is not supported in rule conditions');
 	},
 };
-
-/**
- * Keys that would change an object's prototype instead of creating a property.
- * Rule ids and transform keys become property names, so they are rejected.
- */
-const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
-function assertSafeRule(rule: Rule): void {
-	if (UNSAFE_KEYS.has(rule.id)) {
-		throw new InvalidRuleError(
-			`Rule id "${rule.id}" is not allowed`,
-			rule.id,
-		);
-	}
-	for (const transform of rule.transform ?? []) {
-		if (UNSAFE_KEYS.has(transform.key)) {
-			throw new InvalidRuleError(
-				`Rule "${rule.id}" uses the forbidden transform key "${transform.key}"`,
-				rule.id,
-			);
-		}
-	}
-}
 
 /** State of a single `run()` call. Never stored on the service. */
 interface RunContext {
@@ -67,9 +45,7 @@ export class BusinessEngineService {
 	 * Runs the rules against a payload, in order, and returns the result of
 	 * each rule keyed by its id. Rules never see each other's results.
 	 */
-	async run<
-		TResults extends Record<string, unknown> = Record<string, unknown>,
-	>(
+	async run<TResults extends Record<string, unknown> = Record<string, unknown>>(
 		rules: readonly Rule[],
 		initialPayload: Record<string, unknown>,
 		runOptions: RunOptions = {},
@@ -81,16 +57,9 @@ export class BusinessEngineService {
 				runOptions.continueOnError ?? this.defaults.continueOnError,
 			bindings: { ...this.defaults.bindings, ...runOptions.bindings },
 		};
-		const ids = new Set<string>();
-		for (const rule of rules) {
-			assertSafeRule(rule);
-			if (ids.has(rule.id)) {
-				throw new InvalidRuleError(
-					`Duplicate rule id "${rule.id}"`,
-					rule.id,
-				);
-			}
-			ids.add(rule.id);
+		const issues = checkRules(rules, { deep: false });
+		if (issues.length > 0) {
+			throw new InvalidRuleError(issues);
 		}
 
 		const executionId = randomUUID();
@@ -137,7 +106,10 @@ export class BusinessEngineService {
 					}
 				}
 			} catch (error) {
-				if (!options.continueOnError || !(error instanceof RuleEvaluationError)) {
+				if (
+					!options.continueOnError ||
+					!(error instanceof RuleEvaluationError)
+				) {
 					throw error;
 				}
 				errors.push(error);
@@ -163,6 +135,14 @@ export class BusinessEngineService {
 			output.debug = context.trace;
 		}
 		return output;
+	}
+
+	/**
+	 * Checks rules without running them. Same as the standalone
+	 * `validateRules()`; returns an empty array when the rules are valid.
+	 */
+	validate(rules: unknown): RuleIssue[] {
+		return validateRules(rules);
 	}
 
 	private async runRule(

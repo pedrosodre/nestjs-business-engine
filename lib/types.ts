@@ -58,7 +58,9 @@ export type RunOptions = {
 };
 
 /** What `run()` resolves to. */
-export type RunResult<TResults extends Record<string, unknown> = Record<string, unknown>> = {
+export type RunResult<
+	TResults extends Record<string, unknown> = Record<string, unknown>,
+> = {
 	/** Unique id of this execution (UUID v4). */
 	executionId: string;
 	/** Result of every rule that ran, keyed by rule id. */

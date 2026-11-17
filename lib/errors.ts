@@ -1,3 +1,5 @@
+import type { RuleIssue } from './validation';
+
 /** The step of a rule in which a failure happened. */
 export type RuleStage = 'transform' | 'when' | 'produce';
 
@@ -25,12 +27,7 @@ export class RuleEvaluationError extends BusinessEngineError {
 	/** Position of the error in the formula, when available. */
 	readonly position?: number;
 
-	constructor(
-		ruleId: string,
-		stage: RuleStage,
-		cause: unknown,
-		key?: string,
-	) {
+	constructor(ruleId: string, stage: RuleStage, cause: unknown, key?: string) {
 		const details = describeCause(cause);
 		const target = key === undefined ? stage : `${stage} "${key}"`;
 		super(`Rule "${ruleId}" failed at ${target}: ${details.message}`, {
@@ -70,12 +67,18 @@ function describeCause(cause: unknown): {
 
 /** Thrown before evaluation when a rule is malformed or unsafe. */
 export class InvalidRuleError extends BusinessEngineError {
-	/** Id of the invalid rule, when it has one. */
+	/** Every problem found. */
+	readonly issues: readonly RuleIssue[];
+	/** Id of the first invalid rule, when it has one. */
 	readonly ruleId?: string;
 
-	constructor(message: string, ruleId?: string) {
-		super(message);
-		this.ruleId = ruleId;
+	constructor(issues: readonly RuleIssue[]) {
+		const [first] = issues;
+		const more =
+			issues.length > 1 ? ` (and ${issues.length - 1} more issues)` : '';
+		super(`${first?.message ?? 'Invalid rules'}${more}`);
+		this.issues = issues;
+		this.ruleId = first?.ruleId;
 	}
 }
 
