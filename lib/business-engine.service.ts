@@ -43,6 +43,7 @@ function assertSafeRule(rule: Rule): void {
 /** State of a single `run()` call. Never stored on the service. */
 interface RunContext {
 	trace?: DebugStep[];
+	bindings?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -75,6 +76,7 @@ export class BusinessEngineService {
 		const executionId = randomUUID();
 		const context: RunContext = {
 			trace: options.debug ? [] : undefined,
+			bindings: options.bindings,
 		};
 		const groups =
 			options.group === undefined
@@ -149,7 +151,9 @@ export class BusinessEngineService {
 		for (const transform of rule.transform ?? []) {
 			try {
 				payload[transform.key] = toPlainValue(
-					await this.formulas.compile(transform.formula).evaluate(payload),
+					await this.formulas
+						.compile(transform.formula)
+						.evaluate(payload, context.bindings),
 				);
 			} catch (error) {
 				throw new RuleEvaluationError(
@@ -203,7 +207,9 @@ export class BusinessEngineService {
 		let result: unknown;
 		try {
 			result = toPlainValue(
-				await this.formulas.compile(rule.produce.formula).evaluate(payload),
+				await this.formulas
+					.compile(rule.produce.formula)
+					.evaluate(payload, context.bindings),
 			);
 		} catch (error) {
 			throw new RuleEvaluationError(rule.id, 'produce', error);

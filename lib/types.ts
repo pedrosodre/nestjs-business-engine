@@ -35,6 +35,11 @@ export type RunOptions = {
 	debug?: boolean;
 	/** Only run rules whose `group` is this value (or one of these values). */
 	group?: string | readonly string[];
+	/**
+	 * Variables and functions available to every formula as `$name`, for
+	 * example `{ vat: 0.2, round: (n: number) => Math.round(n) }`.
+	 */
+	bindings?: Record<string, unknown>;
 };
 
 /** What `run()` resolves to. */
