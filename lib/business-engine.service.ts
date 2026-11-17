@@ -87,9 +87,10 @@ export class BusinessEngineService {
 		});
 
 		const results: Record<string, unknown> = {};
+		const matched: string[] = [];
 
 		for (const rule of rules) {
-			if (groups && !groups.has(rule.group)) {
+			if (rule.enabled === false || (groups && !groups.has(rule.group))) {
 				continue;
 			}
 
@@ -103,6 +104,7 @@ export class BusinessEngineService {
 			const payload = await this.transform(rule, initialPayload, context);
 
 			if (this.evaluate(rule, payload, context)) {
+				matched.push(rule.id);
 				const result = await this.produce(rule, payload, context);
 				// JSONata returns undefined when a path matches nothing.
 				if (result !== undefined) {
@@ -119,6 +121,7 @@ export class BusinessEngineService {
 		const output: RunResult<TResults> = {
 			executionId,
 			results: results as TResults,
+			matched,
 		};
 		if (context.trace) {
 			output.debug = context.trace;

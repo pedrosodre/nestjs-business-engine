@@ -90,4 +90,28 @@ describe('run()', () => {
 		expect(first.executionId).toMatch(/^[0-9a-f-]{36}$/);
 		expect(first.executionId).not.toBe(second.executionId);
 	});
+
+	it('skips disabled rules', async () => {
+		const { results } = await service.run(
+			[
+				{ id: 'on', produce: { formula: '1' } },
+				{ id: 'off', enabled: false, produce: { default: 0, formula: '2' } },
+			],
+			{},
+		);
+		expect(results).toEqual({ on: 1 });
+	});
+
+	it('lists the rules whose condition matched', async () => {
+		const { results, matched } = await service.run(
+			[
+				{ id: 'big', when: { total: { $gt: 100 } }, produce: { default: false, formula: 'true' } },
+				{ id: 'small', when: { total: { $lte: 100 } }, produce: { default: false, formula: 'true' } },
+				{ id: 'any', produce: { formula: 'total' } },
+			],
+			{ total: 50 },
+		);
+		expect(results).toEqual({ big: false, small: true, any: 50 });
+		expect(matched).toEqual(['small', 'any']);
+	});
 });

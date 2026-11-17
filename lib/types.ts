@@ -18,6 +18,8 @@ export type RuleProduce = {
 export type Rule = {
 	/** Unique id. Results are keyed by it. */
 	id: string;
+	/** Set to `false` to skip the rule (it produces no result). Defaults to `true`. */
+	enabled?: boolean;
 	/** Optional group, used to run a subset of rules with `RunOptions.group`. */
 	group?: string;
 	/** Derived values computed in order before the condition. Defaults to none. */
@@ -41,6 +43,8 @@ export type RunResult<TResults extends Record<string, unknown> = Record<string, 
 	executionId: string;
 	/** Result of every rule that ran, keyed by rule id. */
 	results: TResults;
+	/** Ids of the rules whose condition matched, in execution order. */
+	matched: string[];
 	/** Step-by-step trace, only when `RunOptions.debug` is `true`. */
 	debug?: DebugStep[];
 };
