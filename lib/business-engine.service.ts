@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import jsonata from 'jsonata';
 import sift from 'sift';
 import { InvalidRuleError, RuleEvaluationError } from './errors';
 import { DebugStep, Rule, RunOptions, RunResult } from './types';
+import { FormulaCache } from './util/formula.util';
 import { toPlainValue } from './util/normalize.util';
 
 /**
@@ -47,6 +47,8 @@ interface RunContext {
 
 @Injectable()
 export class BusinessEngineService {
+	private readonly formulas = new FormulaCache();
+
 	/**
 	 * Runs the rules against a payload, in order, and returns the result of
 	 * each rule keyed by its id. Rules never see each other's results.
@@ -147,7 +149,7 @@ export class BusinessEngineService {
 		for (const transform of rule.transform ?? []) {
 			try {
 				payload[transform.key] = toPlainValue(
-					await jsonata(transform.formula).evaluate(payload),
+					await this.formulas.compile(transform.formula).evaluate(payload),
 				);
 			} catch (error) {
 				throw new RuleEvaluationError(
@@ -201,7 +203,7 @@ export class BusinessEngineService {
 		let result: unknown;
 		try {
 			result = toPlainValue(
-				await jsonata(rule.produce.formula).evaluate(payload),
+				await this.formulas.compile(rule.produce.formula).evaluate(payload),
 			);
 		} catch (error) {
 			throw new RuleEvaluationError(rule.id, 'produce', error);
