@@ -22,6 +22,22 @@ const SAFE_SIFT_OPERATIONS = {
 	},
 };
 
+/**
+ * Copies a rule's default so callers that mutate a result do not change the
+ * rule itself. Values that cannot be cloned (functions, class instances with
+ * private state) are returned as is.
+ */
+function cloneDefault(value: unknown): unknown {
+	if (value === null || typeof value !== 'object') {
+		return value;
+	}
+	try {
+		return structuredClone(value);
+	} catch {
+		return value;
+	}
+}
+
 /** State of a single `run()` call. Never stored on the service. */
 interface RunContext {
 	trace?: DebugStep[];
@@ -94,7 +110,7 @@ export class BusinessEngineService {
 				rule,
 			});
 
-			results[rule.id] = rule.produce.default;
+			results[rule.id] = cloneDefault(rule.produce.default);
 
 			try {
 				const outcome = await this.runRule(rule, initialPayload, context);

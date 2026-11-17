@@ -114,4 +114,21 @@ describe('run()', () => {
 		expect(results).toEqual({ big: false, small: true, any: 50 });
 		expect(matched).toEqual(['small', 'any']);
 	});
+
+	it('does not share default values between runs', async () => {
+		const rules = [
+			{
+				id: 'tags',
+				when: { never: true },
+				produce: { default: { list: [] as string[] }, formula: '1' },
+			},
+		];
+
+		const first = await service.run(rules, {});
+		(first.results.tags as { list: string[] }).list.push('mutated');
+		const second = await service.run(rules, {});
+
+		expect(second.results).toEqual({ tags: { list: [] } });
+		expect(rules[0].produce.default).toEqual({ list: [] });
+	});
 });
