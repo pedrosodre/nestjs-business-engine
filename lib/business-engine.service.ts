@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import jsonata from 'jsonata';
 import sift from 'sift';
 import { InvalidRuleError, RuleEvaluationError } from './errors';
-import { DebugStep, Rule } from './types';
+import { DebugStep, Rule, RunOptions, RunResult } from './types';
 import { toPlainValue } from './util/normalize.util';
 
 /**
@@ -47,15 +47,17 @@ interface RunContext {
 
 @Injectable()
 export class BusinessEngineService {
-	async run(
-		rules: Array<Rule>,
+	/**
+	 * Runs the rules against a payload, in order, and returns the result of
+	 * each rule keyed by its id. Rules never see each other's results.
+	 */
+	async run<
+		TResults extends Record<string, unknown> = Record<string, unknown>,
+	>(
+		rules: readonly Rule[],
 		initialPayload: Record<string, unknown>,
-		debug: boolean = false,
-	): Promise<{
-		results: Record<string, unknown>;
-		executionId: string;
-		debug?: DebugStep[];
-	}> {
+		options: RunOptions = {},
+	): Promise<RunResult<TResults>> {
 		const ids = new Set<string>();
 		for (const rule of rules) {
 			assertSafeRule(rule);
@@ -69,7 +71,15 @@ export class BusinessEngineService {
 		}
 
 		const executionId = randomUUID();
-		const context: RunContext = { trace: debug ? [] : undefined };
+		const context: RunContext = {
+			trace: options.debug ? [] : undefined,
+		};
+		const groups =
+			options.group === undefined
+				? undefined
+				: new Set<string | undefined>(
+						typeof options.group === 'string' ? [options.group] : options.group,
+					);
 
 		this.step(context, 'Starting the business engine', {
 			rules,
@@ -79,6 +89,10 @@ export class BusinessEngineService {
 		const results: Record<string, unknown> = {};
 
 		for (const rule of rules) {
+			if (groups && !groups.has(rule.group)) {
+				continue;
+			}
+
 			this.step(context, 'Running a single rule', {
 				ruleId: rule.id,
 				rule,
@@ -102,11 +116,14 @@ export class BusinessEngineService {
 			executionId,
 		});
 
+		const output: RunResult<TResults> = {
+			executionId,
+			results: results as TResults,
+		};
 		if (context.trace) {
-			return { results, executionId, debug: context.trace };
+			output.debug = context.trace;
 		}
-
-		return { results, executionId };
+		return output;
 	}
 
 	private step(

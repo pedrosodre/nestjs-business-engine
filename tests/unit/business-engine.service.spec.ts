@@ -98,7 +98,7 @@ describe('BusinessEngineService', () => {
 		const { results, executionId, debug } = await service.run(
 			exampleRules,
 			examplePayload,
-			true,
+			{ debug: true },
 		);
 
 		expect(executionId).toBeDefined();

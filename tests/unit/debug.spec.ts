@@ -12,7 +12,7 @@ const rule = (overrides: Partial<Rule> = {}): Rule => ({
 describe('debug trace', () => {
 	it('returns the trace of every step when debug is enabled', async () => {
 		const service = new BusinessEngineService();
-		const { results, debug } = await service.run([rule()], { value: 6 }, true);
+		const { results, debug } = await service.run([rule()], { value: 6 }, { debug: true });
 
 		expect(results).toEqual({ r1: 13 });
 		expect(debug?.map(step => step.message)).toEqual([
@@ -36,7 +36,7 @@ describe('debug trace', () => {
 		const service = new BusinessEngineService();
 
 		await expect(
-			service.run([rule({ produce: { formula: '1 +' } })], { value: 6 }, true),
+			service.run([rule({ produce: { formula: '1 +' } })], { value: 6 }, { debug: true }),
 		).rejects.toThrow();
 
 		const leftovers = (service as any).debugSteps ?? {};

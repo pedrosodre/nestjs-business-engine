@@ -49,4 +49,45 @@ describe('run()', () => {
 
 		expect(results.r1).toBe(node);
 	});
+
+	describe('group option', () => {
+		const rules = [
+			{ id: 'a', group: 'pricing', produce: { formula: '1' } },
+			{ id: 'b', group: 'shipping', produce: { formula: '2' } },
+			{ id: 'c', produce: { formula: '3' } },
+		];
+
+		it('runs every rule when no group is given', async () => {
+			const { results } = await service.run(rules, {});
+			expect(results).toEqual({ a: 1, b: 2, c: 3 });
+		});
+
+		it('runs only the rules of one group', async () => {
+			const { results } = await service.run(rules, {}, { group: 'pricing' });
+			expect(results).toEqual({ a: 1 });
+		});
+
+		it('runs the rules of several groups', async () => {
+			const { results } = await service.run(rules, {}, {
+				group: ['pricing', 'shipping'],
+			});
+			expect(results).toEqual({ a: 1, b: 2 });
+		});
+	});
+
+	it('types the results with a generic', async () => {
+		const { results } = await service.run<{ total: number }>(
+			[{ id: 'total', produce: { formula: 'a + b' } }],
+			{ a: 1, b: 2 },
+		);
+		const total: number = results.total;
+		expect(total).toBe(3);
+	});
+
+	it('generates a unique execution id per run', async () => {
+		const first = await service.run([], {});
+		const second = await service.run([], {});
+		expect(first.executionId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(first.executionId).not.toBe(second.executionId);
+	});
 });
