@@ -33,7 +33,7 @@ Pick the names that **a pull request** reports. Push runs of the release workflo
 Publishing uses npm [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) with provenance, so no long-lived npm token is needed. A trusted publisher can only be configured on a package that already exists, so the **first** release needs a token:
 
 1. Create a granular npm access token with publish rights (short expiry) and add it as the `NPM_TOKEN` Actions secret.
-2. Push `next` (recommended) to publish `1.0.0-next.1` on the `next` dist-tag, or push `master` to publish `1.0.0` directly.
+2. Push `master` to publish `1.0.0` on the `latest` dist-tag (see [First release](#first-release-100)).
 3. On npmjs.com, open the package → **Settings → Trusted Publisher** → GitHub Actions. User: `pedrosodre`, repository: `nestjs-business-engine`, workflow filename: `release.yml`, environment: empty.
 4. After the next successful OIDC release, set **Publishing access** to "Require two-factor authentication and disallow tokens", delete the `NPM_TOKEN` secret and revoke the token on npm.
 
@@ -49,9 +49,12 @@ Keep `id-token: write` in the release job and `"provenance": true` in `publishCo
 
 ## First release (1.0.0)
 
-1. Push `master` and `next` with the current history. Each push to `next` publishes a prerelease (`1.0.0-next.1`, `1.0.0-next.2`, ...) that can be installed with `npm install nestjs-business-engine@next`.
-2. Install the prerelease in a scratch application for NestJS 11 and NestJS 12 and exercise it (rules from JSON, `forRootAsync`, errors, timeouts, ESM and CommonJS).
-3. When it is ready, fast-forward `master` to `next` (`git push origin next:master`) or open a pull request and **rebase-merge** it. Never squash a release PR: release notes are generated from the individual commits.
+The first version is released straight from `master`. The `next` branch exists but stays idle until work on 2.0 starts.
+
+1. Before pushing, build and pack locally (`npm run check && npm pack`) and install the tarball in a scratch application for NestJS 11 and NestJS 12. Exercise rules loaded from JSON, `forRootAsync`, errors, timeouts, and both ESM and CommonJS.
+2. Push `master` only: `git push -u origin master`. The release workflow runs CI and semantic-release publishes `1.0.0` on `latest`.
+3. **After** `1.0.0` is published, push `next`: `git push -u origin next`. It points at the same commit as `master`, so semantic-release finds nothing to release there. Pushing `next` first would publish `1.0.0-next.1` instead.
+4. Keep `next` in sync with `master` while it is idle (`git push origin master:next` when it is a fast-forward), so a future major starts from the current code.
 
 ## Releasing a new major
 
