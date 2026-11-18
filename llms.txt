@@ -57,19 +57,20 @@ RunResult: `executionId: string` (UUID), `results: TResults`, `matched: string[]
 
 ## Validation
 
-- `validateRules(rules: unknown): RuleIssue[]` with `RuleIssue = { message: string; path: (string | number)[]; ruleId?: string }`. Checks structure, missing/duplicate ids, forbidden keys (`__proto__`, `constructor`, `prototype`), JSONata syntax and `$where`. Empty array = valid.
+- `validateRules(rules: unknown): RuleIssue[]` with `RuleIssue = { message: string; path: (string | number)[]; ruleId?: string }`. Checks structure, missing/duplicate ids, forbidden keys (`__proto__`, `constructor`, `prototype`), JSONata syntax, unsafe formulas (redefining `$clone`, using `$eval`) and `$where`. Empty array = valid.
 - `rulesSchema`: Standard Schema v1 (`rulesSchema['~standard'].validate(value)`) backed by validateRules.
 - `run()` checks structure up front and throws `InvalidRuleError`.
 
 ## Errors (all extend BusinessEngineError, which extends Error)
 
 - `InvalidRuleError`: `issues: RuleIssue[]`, `ruleId?`. Thrown before any rule runs.
-- `RuleEvaluationError`: `ruleId`, `stage: 'transform' | 'when' | 'produce'`, `key?` (transform key), `code?` (JSONata code such as `S0207`, `T1006`, or `TIMEOUT`), `position?`, `cause`.
+- `RuleEvaluationError`: `ruleId`, `stage: 'transform' | 'when' | 'produce'`, `key?` (transform key), `code?` (JSONata code such as `S0207`, `T1006`, or `TIMEOUT` / `UNSAFE_FORMULA`), `position?`, `cause`.
 - `FormulaTimeoutError`: `code: 'TIMEOUT'`, `timeout`. The cause of a RuleEvaluationError on timeout.
 
 ## Security notes
 
 - sift `$where` is disabled (it would run JavaScript). JSONata cannot reach Node.js APIs.
+- Formulas cannot redefine `$clone` or use `$eval` (code `UNSAFE_FORMULA`): the transform operator would otherwise modify the caller's payload and bindings.
 - Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever.
 - Bindings are trusted application code.
 

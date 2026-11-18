@@ -32,6 +32,63 @@ function checkDeadline(): void {
 	}
 }
 
+/**
+ * Returns why a parsed formula is unsafe to run, or `undefined` if it is fine.
+ *
+ * JSONata's transform operator (`obj ~> | pattern | update |`) copies its input
+ * with whatever `$clone` resolves to in the current scope. A formula that
+ * rebinds `$clone` (to `function($o){ $o }`, say) makes the operator write into
+ * the original objects: the caller's payload, bindings and module defaults.
+ * `$eval` is rejected too, because the formula it evaluates is only known at
+ * run time and could rebind `$clone` without this check seeing it.
+ */
+export function findUnsafeFormulaUsage(ast: unknown): string | undefined {
+	const seen = new Set<object>();
+	const visit = (node: unknown): string | undefined => {
+		if (node === null || typeof node !== 'object' || seen.has(node)) {
+			return undefined;
+		}
+		seen.add(node);
+		const n = node as Record<string, unknown>;
+		if (n.type === 'variable' && n.value === 'eval') {
+			return '$eval is not supported';
+		}
+		const lhs = n.lhs as Record<string, unknown> | undefined;
+		const rebindsClone =
+			(n.type === 'bind' &&
+				lhs?.type === 'variable' &&
+				lhs.value === 'clone') ||
+			(n.type === 'lambda' &&
+				Array.isArray(n.arguments) &&
+				n.arguments.some(
+					argument => (argument as { value?: unknown })?.value === 'clone',
+				)) ||
+			n.focus === 'clone' ||
+			n.index === 'clone';
+		if (rebindsClone) {
+			return '$clone cannot be redefined';
+		}
+		for (const value of Object.values(n)) {
+			const reason = visit(value);
+			if (reason !== undefined) {
+				return reason;
+			}
+		}
+		return undefined;
+	};
+	return visit(ast);
+}
+
+/** Parses a formula and rejects unsafe usage. Throws on invalid formulas. */
+export function parseFormula(formula: string): jsonata.Expression {
+	const expression = jsonata(formula);
+	const reason = findUnsafeFormulaUsage(expression.ast());
+	if (reason !== undefined) {
+		throw Object.assign(new Error(reason), { code: 'UNSAFE_FORMULA' });
+	}
+	return expression;
+}
+
 /** Options for a single formula evaluation. */
 export interface EvaluateOptions {
 	bindings?: Record<string, unknown>;
@@ -52,7 +109,10 @@ export class FormulaCache {
 		return this.entries.size;
 	}
 
-	/** Returns the compiled formula. Throws JSONata's error if it is invalid. */
+	/**
+	 * Returns the compiled formula. Throws JSONata's error if it is invalid,
+	 * or an `UNSAFE_FORMULA` error if it uses unsafe features.
+	 */
 	compile(formula: string): jsonata.Expression {
 		const cached = this.entries.get(formula);
 		if (cached) {
@@ -62,7 +122,7 @@ export class FormulaCache {
 			return cached;
 		}
 
-		const expression = jsonata(formula);
+		const expression = parseFormula(formula);
 		// assign() is typed for string names, but JSONata looks this hook up by symbol.
 		expression.assign(EVALUATE_ENTRY as unknown as string, checkDeadline);
 		if (this.maxSize > 0) {

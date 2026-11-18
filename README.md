@@ -248,6 +248,7 @@ Rules are data that may be written by people who should not be able to run code 
 - **No JavaScript execution.** JSONata is a sandboxed expression language, and sift's `$where` operator (which compiles strings with `new Function`) is disabled.
 - **Formula timeouts.** JSONata optimizes tail calls, so a recursive formula can run forever. Set `timeout` when rules come from outside your code.
 - **Prototype pollution.** `__proto__`, `constructor` and `prototype` are rejected as rule ids and transform keys.
+- **No changes to your objects.** JSONata's transform operator copies objects with `$clone`, so formulas cannot redefine `$clone` (which would let them modify your payload or bindings) or use `$eval` (whose formula cannot be checked in advance). Such formulas fail with code `UNSAFE_FORMULA` and are reported by `validateRules()`.
 - **Bindings are trusted code.** Only expose functions you would let rule authors call.
 
 Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
