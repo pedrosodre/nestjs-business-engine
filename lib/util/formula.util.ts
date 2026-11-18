@@ -13,24 +13,108 @@ export const DEFAULT_FORMULA_CACHE_SIZE = 500;
  */
 const EVALUATE_ENTRY = Symbol.for('jsonata.__evaluate_entry');
 
+/** JSONata calls the function bound to this symbol after evaluating every node. */
+const EVALUATE_EXIT = Symbol.for('jsonata.__evaluate_exit');
+
 interface Deadline {
 	at: number;
 	timeout: number;
 }
 
+/** State of the evaluation in progress. */
+interface Evaluation {
+	deadline?: Deadline;
+	/** Arrays seen by `removeForeignFlag()`, for formulas that need `removeForeignFlags()`. */
+	foreignArrays?: Set<unknown[]>;
+}
+
 /**
- * Deadline of the evaluation in progress. It is kept outside JSONata so a
+ * State of the evaluation in progress. It is kept outside JSONata so a
  * formula cannot reach it: bindings are JSONata variables, and a formula can
  * shadow any variable with `:=`, which would disable the timeout.
  */
-const deadlines = new AsyncLocalStorage<Deadline | undefined>();
+const evaluations = new AsyncLocalStorage<Evaluation | undefined>();
 
 function checkDeadline(): void {
-	const deadline = deadlines.getStore();
+	const deadline = evaluations.getStore()?.deadline;
 	if (deadline && Date.now() > deadline.at) {
 		throw new FormulaTimeoutError(deadline.timeout);
 	}
 }
+
+type FlaggedArray = unknown[] & { sequence?: unknown; keepSingleton?: unknown };
+
+/**
+ * Keeps JSONata from leaving a flag on arrays it did not create.
+ *
+ * A path that ends in `[]` (`tags[]`) sets an enumerable `keepSingleton` flag
+ * on its result. When that result is an array taken as is from the payload or
+ * a binding, the flag lands on the caller's array: it shows up in
+ * `Object.keys`, deep equality checks and other rules' results, and stays on
+ * module default bindings for every later run. JSONata only reads the flag on
+ * the sequences it builds (`sequence: true`), so removing it from any other
+ * array changes no result.
+ *
+ * This hook runs after every node, so it removes the flag as soon as the path
+ * returns the array. A path with a grouping (`lines[]{...}`) returns the group
+ * instead, so for those formulas the arrays the hook sees are recorded and
+ * `removeForeignFlags()` cleans them when the evaluation ends.
+ */
+function removeForeignFlag(
+	_expr: unknown,
+	_input: unknown,
+	_environment: unknown,
+	result: unknown,
+): void {
+	if (!Array.isArray(result) || (result as FlaggedArray).sequence) {
+		return;
+	}
+	if (Object.prototype.hasOwnProperty.call(result, 'keepSingleton')) {
+		delete (result as FlaggedArray).keepSingleton;
+	}
+	evaluations.getStore()?.foreignArrays?.add(result);
+}
+
+function removeForeignFlags(foreignArrays: Set<unknown[]>): void {
+	for (const array of foreignArrays) {
+		delete (array as FlaggedArray).keepSingleton;
+	}
+}
+
+/** How much clean-up a parsed formula needs, see `removeForeignFlag()`. */
+type FlagCleanup = 'none' | 'node' | 'evaluation';
+
+/**
+ * Only paths ending in `[]` make JSONata flag arrays. Formulas without one get
+ * no exit hook (JSONata awaits it after every node), and only those with a
+ * grouping on such a path need a per-evaluation store (Node propagates an
+ * undefined store about twice as fast through JSONata's promises).
+ */
+function flagCleanup(ast: unknown): FlagCleanup {
+	const seen = new Set<object>();
+	let hasPath = false;
+	const visit = (node: unknown): boolean => {
+		if (node === null || typeof node !== 'object' || seen.has(node)) {
+			return false;
+		}
+		seen.add(node);
+		const n = node as Record<string, unknown>;
+		if (n.keepSingletonArray === true) {
+			if (n.group !== undefined) {
+				return true;
+			}
+			hasPath = true;
+		}
+		return Object.values(n).some(visit);
+	};
+	if (visit(ast)) {
+		return 'evaluation';
+	}
+	return hasPath ? 'node' : 'none';
+}
+
+/** Compiled formulas whose clean-up is `evaluation`. */
+const needsEvaluationCleanup = new WeakSet<jsonata.Expression>();
 
 /**
  * Returns why a parsed formula is unsafe to run, or `undefined` if it is fine.
@@ -125,6 +209,13 @@ export class FormulaCache {
 		const expression = parseFormula(formula);
 		// assign() is typed for string names, but JSONata looks this hook up by symbol.
 		expression.assign(EVALUATE_ENTRY as unknown as string, checkDeadline);
+		const cleanup = flagCleanup(expression.ast());
+		if (cleanup !== 'none') {
+			expression.assign(EVALUATE_EXIT as unknown as string, removeForeignFlag);
+		}
+		if (cleanup === 'evaluation') {
+			needsEvaluationCleanup.add(expression);
+		}
 		if (this.maxSize > 0) {
 			if (this.entries.size >= this.maxSize) {
 				const oldest = this.entries.keys().next().value as string;
@@ -143,11 +234,22 @@ export class FormulaCache {
 	): Promise<unknown> {
 		const expression = this.compile(formula);
 		const { bindings, timeout } = options;
-		const deadline: Deadline | undefined = timeout
+		const deadline = timeout
 			? { at: Date.now() + timeout, timeout }
 			: undefined;
-		// Always set the store, so a nested evaluation without a timeout (for
-		// example from a binding function) does not inherit the outer deadline.
-		return deadlines.run(deadline, () => expression.evaluate(input, bindings));
+		const foreignArrays = needsEvaluationCleanup.has(expression)
+			? new Set<unknown[]>()
+			: undefined;
+		// The store is left undefined when it is not needed, which is faster.
+		// It is always set, so a nested evaluation (for example from a binding
+		// function) does not inherit the outer deadline or arrays.
+		const evaluation: Evaluation | undefined =
+			deadline || foreignArrays ? { deadline, foreignArrays } : undefined;
+		const result = evaluations.run(evaluation, () =>
+			expression.evaluate(input, bindings),
+		);
+		return foreignArrays
+			? result.finally(() => removeForeignFlags(foreignArrays))
+			: result;
 	}
 }
