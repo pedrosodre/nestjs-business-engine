@@ -30,14 +30,25 @@ Pick the names that **a pull request** reports. Push runs of the release workflo
 
 ## npm publishing
 
-Publishing uses npm [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) with provenance, so no long-lived npm token is needed. A trusted publisher can only be configured on a package that already exists, so the **first** release needs a token:
+Releases are published by the release workflow through npm [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) with provenance. No npm token is needed or wanted.
 
-1. Create a granular npm access token with publish rights (short expiry) and add it as the `NPM_TOKEN` Actions secret.
-2. Push `master` to publish `1.0.0` on the `latest` dist-tag (see [First release](#first-release-100)).
-3. On npmjs.com, open the package → **Settings → Trusted Publisher** → GitHub Actions. User: `pedrosodre`, repository: `nestjs-business-engine`, workflow filename: `release.yml`, environment: empty.
-4. After the next successful OIDC release, set **Publishing access** to "Require two-factor authentication and disallow tokens", delete the `NPM_TOKEN` secret and revoke the token on npm.
+- Trusted publisher (npmjs.com → package → **Settings → Trusted Publisher** → GitHub Actions): user `pedrosodre`, repository `nestjs-business-engine`, workflow filename `release.yml`, environment empty.
+- **Publishing access**: "Require two-factor authentication and disallow tokens".
+- Keep `id-token: write` in the release job and `"provenance": true` in `publishConfig`. Provenance also requires the repository to be public.
+- There must be no `NPM_TOKEN` secret. If OIDC fails, fix the trusted publisher instead of adding a token: npm restricts tokens that bypass 2FA for publishing, and such a token fails with `E403 You may not perform that action with these credentials`.
 
-Keep `id-token: write` in the release job and `"provenance": true` in `publishConfig`.
+### If a release fails at the npm publish step
+
+semantic-release creates and pushes the git tag (`vX.Y.Z`) and its note (`refs/notes/semantic-release-vX.Y.Z`) **before** it publishes. When the publish fails, the tag stays behind, and every later run treats that version as already released and publishes nothing. Before re-running:
+
+1. Fix the cause (usually the trusted publisher configuration).
+2. Delete the tag and its note: `git push origin :refs/tags/vX.Y.Z :refs/notes/semantic-release-vX.Y.Z`.
+3. Delete the GitHub release for that tag, if one was created.
+4. Re-run the Release workflow for that commit (re-runs use the current secrets and settings).
+
+### How 1.0.0 was published
+
+A trusted publisher can only be configured on a package that already exists, and npm rejected the 2FA-bypass token from CI. So `1.0.0` was published by hand from `e8fcb9e` (no provenance), after a placeholder `0.0.0-stage` created the package, and the `v1.0.0` tag was pushed manually so semantic-release continues from it. Every later version is released by CI with provenance.
 
 ## Branches
 
@@ -47,14 +58,9 @@ Keep `id-token: write` in the release job and `"provenance": true` in `publishCo
 | `next`   | Prereleases (`x.y.z-next.N`) on the `next` tag |
 | `N.x`    | Maintenance releases of an older major         |
 
-## First release (1.0.0)
+## The `next` branch
 
-The first version is released straight from `master`. The `next` branch exists but stays idle until work on 2.0 starts.
-
-1. Before pushing, build and pack locally (`npm run check && npm pack`) and install the tarball in a scratch application for NestJS 11 and NestJS 12. Exercise rules loaded from JSON, `forRootAsync`, errors, timeouts, and both ESM and CommonJS.
-2. Push `master` only: `git push -u origin master`. The release workflow runs CI and semantic-release publishes `1.0.0` on `latest`.
-3. **After** `1.0.0` is published, push `next`: `git push -u origin next`. It points at the same commit as `master`, so semantic-release finds nothing to release there. Pushing `next` first would publish `1.0.0-next.1` instead.
-4. Keep `next` in sync with `master` while it is idle (`git push origin master:next` when it is a fast-forward), so a future major starts from the current code.
+`next` stays idle until work on the next major starts. While it is idle, keep it level with `master` (`git push origin master:next`, a fast-forward), so it has nothing new to release and a future major starts from the current code.
 
 ## Releasing a new major
 
@@ -62,11 +68,13 @@ The first version is released straight from `master`. The `next` branch exists b
 2. Work on `next` and validate the prereleases.
 3. Fast-forward `master` to `next` (or rebase-merge a PR).
 
-Releases are never made by hand: no manual tags, no version bumps in `package.json`.
+Releases are never made by hand: no manual tags, no version bumps in `package.json` (1.0.0 was the only exception, see above).
 
 ## Maintenance
 
 - `npm audit --omit=dev` shows what affects users. Dev-only findings never reach consumers.
-- Fix what has a fix within range (`npm update <pkg>`); dismiss dev-only alerts without a fix as "Risk is tolerable" with a reason. Don't force fixes with `overrides`.
+- Fix what has a fix within range (`npm update <pkg>`); dismiss dev-only alerts without a fix as "Risk is tolerable" with a reason. Avoid forcing fixes with `overrides`.
+- Current override: `minimatch` 11 for `@microsoft/api-extractor`, which pins a vulnerable 10.2.3 exactly. Remove it from `package.json` once api-extractor depends on `minimatch` >= 11.0.1.
+- Copies of packages bundled inside other packages (for example the `npm` bundled with semantic-release) cannot be overridden. Dismiss their alerts as dev-only until upstream updates them.
 - Dependabot security PRs sometimes use `fix(deps)` for dev dependencies, which publishes an unnecessary patch. Rename the PR to `build(deps-dev): …` before squashing.
 - PRs to maintenance branches: change the base from `master` to `N.x` on the compare page. Never merge maintenance branches into `master`; cherry-pick fixes instead.
