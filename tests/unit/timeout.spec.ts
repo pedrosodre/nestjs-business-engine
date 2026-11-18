@@ -5,6 +5,10 @@ import {
 } from '../../lib';
 
 const infiniteLoop = '( $loop := function($n) { $loop($n + 1) }; $loop(0) )';
+// Bounded so a regression fails the test instead of hanging it. It runs
+// far longer than the timeouts used below.
+const longLoop =
+	'( $loop := function($n) { $n >= 200000 ? $n : $loop($n + 1) }; $loop(0) )';
 
 describe('timeout', () => {
 	const service = new BusinessEngineService();
@@ -67,5 +71,63 @@ describe('timeout', () => {
 		);
 		expect(second.results).toEqual({ loop: 'stopped' });
 		expect(second.errors[0].code).toBe('TIMEOUT');
+	});
+
+	it.each([
+		['null', 'null'],
+		['a far-future deadline', '{"at": 9e15, "timeout": 1}'],
+	])(
+		'cannot be disabled by a formula that rebinds the deadline to %s',
+		async (_name, value) => {
+			const formula = `( $__businessEngineDeadline := ${value}; ${longLoop} )`;
+			const error = await service
+				.run(
+					[
+						{
+							id: 'loop',
+							transform: [{ key: 'x', formula }],
+							produce: { formula },
+						},
+					],
+					{},
+					{ timeout: 20 },
+				)
+				.catch(e => e);
+
+			expect(error).toBeInstanceOf(RuleEvaluationError);
+			expect(error.code).toBe('TIMEOUT');
+		},
+	);
+
+	it('does not expose the deadline to formulas', async () => {
+		const { results } = await service.run(
+			[
+				{
+					id: 'peek',
+					produce: { default: 'hidden', formula: '$__businessEngineDeadline' },
+				},
+			],
+			{},
+			{ timeout: 1000 },
+		);
+		expect(results).toEqual({ peek: 'hidden' });
+	});
+
+	it('does not apply an outer deadline to a nested run without a timeout', async () => {
+		let inner: unknown;
+		const nested = async () => {
+			// Let the outer deadline expire before the nested run starts.
+			await new Promise(resolve => setTimeout(resolve, 50));
+			inner = (
+				await service.run([{ id: 'inner', produce: { formula: '1 + 1' } }], {})
+			).results.inner;
+			return inner;
+		};
+		await service.run(
+			[{ id: 'outer', produce: { formula: '$nested()' } }],
+			{},
+			{ timeout: 10, continueOnError: true, bindings: { nested } },
+		);
+		expect(inner).toBe(2);
 	});
 });

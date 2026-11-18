@@ -1,11 +1,9 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import jsonata from 'jsonata';
 import { FormulaTimeoutError } from '../errors';
 
 /** Default number of compiled formulas kept in memory. */
 export const DEFAULT_FORMULA_CACHE_SIZE = 500;
-
-/** Binding that carries the deadline of the current evaluation. */
-const DEADLINE_BINDING = '__businessEngineDeadline';
 
 /**
  * JSONata calls the function bound to this symbol before evaluating every
@@ -20,12 +18,15 @@ interface Deadline {
 	timeout: number;
 }
 
-function checkDeadline(
-	_node: unknown,
-	_input: unknown,
-	environment: { lookup(name: string): unknown },
-): void {
-	const deadline = environment.lookup(DEADLINE_BINDING) as Deadline | undefined;
+/**
+ * Deadline of the evaluation in progress. It is kept outside JSONata so a
+ * formula cannot reach it: bindings are JSONata variables, and a formula can
+ * shadow any variable with `:=`, which would disable the timeout.
+ */
+const deadlines = new AsyncLocalStorage<Deadline | undefined>();
+
+function checkDeadline(): void {
+	const deadline = deadlines.getStore();
 	if (deadline && Date.now() > deadline.at) {
 		throw new FormulaTimeoutError(deadline.timeout);
 	}
@@ -82,13 +83,11 @@ export class FormulaCache {
 	): Promise<unknown> {
 		const expression = this.compile(formula);
 		const { bindings, timeout } = options;
-		if (!timeout) {
-			return expression.evaluate(input, bindings);
-		}
-		const deadline: Deadline = { at: Date.now() + timeout, timeout };
-		return expression.evaluate(input, {
-			...bindings,
-			[DEADLINE_BINDING]: deadline,
-		});
+		const deadline: Deadline | undefined = timeout
+			? { at: Date.now() + timeout, timeout }
+			: undefined;
+		// Always set the store, so a nested evaluation without a timeout (for
+		// example from a binding function) does not inherit the outer deadline.
+		return deadlines.run(deadline, () => expression.evaluate(input, bindings));
 	}
 }
