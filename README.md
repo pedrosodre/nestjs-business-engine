@@ -119,13 +119,13 @@ const { executionId, results, matched, errors, debug } = await engine.run(
 
 ### Options
 
-| Option            | Type                      | Default | Description                                                                                         |
-| ----------------- | ------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| `group`           | `string \| string[]`      | -       | Only run rules of this group (or these groups).                                                     |
-| `bindings`        | `Record<string, unknown>` | `{}`    | Variables and functions available to every formula as `$name`. Merged over module bindings.         |
-| `timeout`         | `number` (ms)             | none    | Maximum duration of each formula. A slower formula fails with code `TIMEOUT`.                       |
-| `continueOnError` | `boolean`                 | `false` | A failing rule keeps its default and its error goes to `errors` instead of rejecting the whole run. |
-| `debug`           | `boolean`                 | `false` | Return a step-by-step trace in `debug`.                                                             |
+| Option            | Type                      | Default | Description                                                                                                                                                                                                              |
+| ----------------- | ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `group`           | `string \| string[]`      | -       | Only run rules of this group (or these groups).                                                                                                                                                                          |
+| `bindings`        | `Record<string, unknown>` | `{}`    | Variables and functions available to every formula as `$name`. Merged over module bindings.                                                                                                                              |
+| `timeout`         | `number` (ms)             | none    | Maximum duration of each formula. A slower formula fails with code `TIMEOUT`. `0` means no limit; a value that is not a non-negative number makes `run()` throw a `TypeError`. See [Security](#security) for its limits. |
+| `continueOnError` | `boolean`                 | `false` | A failing rule keeps its default and its error goes to `errors` instead of rejecting the whole run.                                                                                                                      |
+| `debug`           | `boolean`                 | `false` | Return a step-by-step trace in `debug`.                                                                                                                                                                                  |
 
 ### Result
 
@@ -246,8 +246,9 @@ try {
 Rules are data that may be written by people who should not be able to run code on your servers. The engine is designed for that:
 
 - **No JavaScript execution.** JSONata is a sandboxed expression language, and sift's `$where` operator (which compiles strings with `new Function`) is disabled.
-- **Formula timeouts.** JSONata optimizes tail calls, so a recursive formula can run forever. Set `timeout` when rules come from outside your code.
+- **Formula timeouts.** JSONata optimizes tail calls, so a recursive formula can run forever. Set `timeout` when rules come from outside your code. The timeout is checked between the steps of a formula, so it cannot interrupt a single slow operation: a regular expression with catastrophic backtracking (in a formula or a `$regex` condition, which is not time-limited at all) or `$sort` on a very large array runs to completion and blocks the event loop meanwhile. If rule authors are not trusted, also run the engine where you can stop it, for example in a worker thread or a separate process with its own time limit.
 - **Prototype pollution.** `__proto__`, `constructor` and `prototype` are rejected as rule ids and transform keys.
+- **No changes to your objects.** JSONata's transform operator copies objects with `$clone`, so formulas cannot redefine `$clone` (which would let them modify your payload or bindings) or use `$eval` (whose formula cannot be checked in advance). Such formulas fail with code `UNSAFE_FORMULA` and are reported by `validateRules()`.
 - **Bindings are trusted code.** Only expose functions you would let rule authors call.
 
 Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).

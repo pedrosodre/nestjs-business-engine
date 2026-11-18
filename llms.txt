@@ -43,7 +43,7 @@ Rule fields: `id: string`, `group?: string`, `enabled?: boolean` (false skips), 
 RunOptions:
 - `group?: string | string[]` run only these groups
 - `bindings?: Record<string, unknown>` variables and (async) functions available in formulas as `$name`; merged over module bindings
-- `timeout?: number` max ms per formula; failure code `TIMEOUT`
+- `timeout?: number` max ms per formula; failure code `TIMEOUT` (0 = no limit; a non-number or negative value makes run() throw TypeError)
 - `continueOnError?: boolean` failing rules keep their default and are listed in `errors`
 - `debug?: boolean` return a step-by-step trace in `debug` (contains payload values)
 
@@ -57,20 +57,21 @@ RunResult: `executionId: string` (UUID), `results: TResults`, `matched: string[]
 
 ## Validation
 
-- `validateRules(rules: unknown): RuleIssue[]` with `RuleIssue = { message: string; path: (string | number)[]; ruleId?: string }`. Checks structure, missing/duplicate ids, forbidden keys (`__proto__`, `constructor`, `prototype`), JSONata syntax and `$where`. Empty array = valid.
+- `validateRules(rules: unknown): RuleIssue[]` with `RuleIssue = { message: string; path: (string | number)[]; ruleId?: string }`. Checks structure, missing/duplicate ids, forbidden keys (`__proto__`, `constructor`, `prototype`), JSONata syntax, unsafe formulas (redefining `$clone`, using `$eval`) and `$where`. Empty array = valid.
 - `rulesSchema`: Standard Schema v1 (`rulesSchema['~standard'].validate(value)`) backed by validateRules.
 - `run()` checks structure up front and throws `InvalidRuleError`.
 
 ## Errors (all extend BusinessEngineError, which extends Error)
 
 - `InvalidRuleError`: `issues: RuleIssue[]`, `ruleId?`. Thrown before any rule runs.
-- `RuleEvaluationError`: `ruleId`, `stage: 'transform' | 'when' | 'produce'`, `key?` (transform key), `code?` (JSONata code such as `S0207`, `T1006`, or `TIMEOUT`), `position?`, `cause`.
+- `RuleEvaluationError`: `ruleId`, `stage: 'transform' | 'when' | 'produce'`, `key?` (transform key), `code?` (JSONata code such as `S0207`, `T1006`, or `TIMEOUT` / `UNSAFE_FORMULA`), `position?`, `cause`.
 - `FormulaTimeoutError`: `code: 'TIMEOUT'`, `timeout`. The cause of a RuleEvaluationError on timeout.
 
 ## Security notes
 
 - sift `$where` is disabled (it would run JavaScript). JSONata cannot reach Node.js APIs.
-- Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever.
+- Formulas cannot redefine `$clone` or use `$eval` (code `UNSAFE_FORMULA`): the transform operator would otherwise modify the caller's payload and bindings.
+- Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever. The timeout is checked between formula steps and cannot interrupt one slow operation (catastrophic regex in a formula or a sift `$regex` condition, `$sort` of a huge array); for untrusted rule authors also run the engine in a worker or process you can stop.
 - Bindings are trusted application code.
 
 ## Links

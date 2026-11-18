@@ -1,6 +1,6 @@
-import jsonata from 'jsonata';
 import type { StandardSchemaV1 } from './standard-schema';
 import type { Rule } from './types';
+import { parseFormula } from './util/formula.util';
 
 /** A problem found in a rule set. */
 export interface RuleIssue {
@@ -19,7 +19,7 @@ export interface RuleIssue {
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 interface CheckOptions {
-	/** Also compile formulas and look for `$where` in conditions. */
+	/** Also compile formulas, reject unsafe formula usage and look for `$where` in conditions. */
 	deep: boolean;
 }
 
@@ -143,7 +143,7 @@ function checkFormula(
 		return;
 	}
 	try {
-		jsonata(formula);
+		parseFormula(formula);
 	} catch (error) {
 		const { message, position } = (error ?? {}) as {
 			message?: unknown;
