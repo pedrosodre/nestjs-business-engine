@@ -7,6 +7,14 @@ updates:
     cooldown:
       default-days: 14
     open-pull-requests-limit: 10
+    ignore:
+      # Types must match the oldest supported Node.js (22), not the newest.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # The Jest suite runs on NestJS 11 (NestJS 12 is ESM-only); 12 is covered
+      # by tests/compat in CI.
+      - dependency-name: '@nestjs/*'
+        update-types: ['version-update:semver-major']
     commit-message:
       # Runtime dependency updates are released as fixes, dev updates are not released.
       prefix: fix
