@@ -137,5 +137,10 @@
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": "prettier --write"
+  },
+  "overrides": {
+    "@microsoft/api-extractor": {
+      "minimatch": "11.0.4"
+    }
   }
 }
