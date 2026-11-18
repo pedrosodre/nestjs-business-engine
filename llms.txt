@@ -43,7 +43,7 @@ Rule fields: `id: string`, `group?: string`, `enabled?: boolean` (false skips), 
 RunOptions:
 - `group?: string | string[]` run only these groups
 - `bindings?: Record<string, unknown>` variables and (async) functions available in formulas as `$name`; merged over module bindings
-- `timeout?: number` max ms per formula; failure code `TIMEOUT`
+- `timeout?: number` max ms per formula; failure code `TIMEOUT` (0 = no limit; a non-number or negative value makes run() throw TypeError)
 - `continueOnError?: boolean` failing rules keep their default and are listed in `errors`
 - `debug?: boolean` return a step-by-step trace in `debug` (contains payload values)
 

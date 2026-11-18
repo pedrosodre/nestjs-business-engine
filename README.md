@@ -119,13 +119,13 @@ const { executionId, results, matched, errors, debug } = await engine.run(
 
 ### Options
 
-| Option            | Type                      | Default | Description                                                                                                             |
-| ----------------- | ------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `group`           | `string \| string[]`      | -       | Only run rules of this group (or these groups).                                                                         |
-| `bindings`        | `Record<string, unknown>` | `{}`    | Variables and functions available to every formula as `$name`. Merged over module bindings.                             |
-| `timeout`         | `number` (ms)             | none    | Maximum duration of each formula. A slower formula fails with code `TIMEOUT`. See [Security](#security) for its limits. |
-| `continueOnError` | `boolean`                 | `false` | A failing rule keeps its default and its error goes to `errors` instead of rejecting the whole run.                     |
-| `debug`           | `boolean`                 | `false` | Return a step-by-step trace in `debug`.                                                                                 |
+| Option            | Type                      | Default | Description                                                                                                                                                                                                              |
+| ----------------- | ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `group`           | `string \| string[]`      | -       | Only run rules of this group (or these groups).                                                                                                                                                                          |
+| `bindings`        | `Record<string, unknown>` | `{}`    | Variables and functions available to every formula as `$name`. Merged over module bindings.                                                                                                                              |
+| `timeout`         | `number` (ms)             | none    | Maximum duration of each formula. A slower formula fails with code `TIMEOUT`. `0` means no limit; a value that is not a non-negative number makes `run()` throw a `TypeError`. See [Security](#security) for its limits. |
+| `continueOnError` | `boolean`                 | `false` | A failing rule keeps its default and its error goes to `errors` instead of rejecting the whole run.                                                                                                                      |
+| `debug`           | `boolean`                 | `false` | Return a step-by-step trace in `debug`.                                                                                                                                                                                  |
 
 ### Result
 

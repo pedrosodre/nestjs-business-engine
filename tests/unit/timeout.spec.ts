@@ -130,4 +130,29 @@ describe('timeout', () => {
 		);
 		expect(inner).toBe(2);
 	});
+
+	it.each([['100'], [Number.NaN], [-1], [Infinity]])(
+		'rejects an invalid timeout (%p) instead of ignoring it',
+		async timeout => {
+			const rules = [{ id: 'r', produce: { formula: '1' } }];
+			await expect(
+				service.run(rules, {}, { timeout: timeout as number }),
+			).rejects.toThrow(TypeError);
+			await expect(
+				new BusinessEngineService({ timeout: timeout as number }).run(
+					rules,
+					{},
+				),
+			).rejects.toThrow(/timeout must be a non-negative number/);
+		},
+	);
+
+	it('accepts 0 as no limit', async () => {
+		const { results } = await service.run(
+			[{ id: 'r', produce: { formula: '1' } }],
+			{},
+			{ timeout: 0 },
+		);
+		expect(results).toEqual({ r: 1 });
+	});
 });

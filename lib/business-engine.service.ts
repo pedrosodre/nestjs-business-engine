@@ -73,6 +73,17 @@ export class BusinessEngineService {
 				runOptions.continueOnError ?? this.defaults.continueOnError,
 			bindings: { ...this.defaults.bindings, ...runOptions.bindings },
 		};
+		const { timeout } = options;
+		if (
+			timeout !== undefined &&
+			(typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout < 0)
+		) {
+			// A string such as '100' (from an environment variable, say) would
+			// otherwise silently disable the timeout.
+			throw new TypeError(
+				`timeout must be a non-negative number of milliseconds, got ${String(timeout)}`,
+			);
+		}
 		const issues = checkRules(rules, { deep: false });
 		if (issues.length > 0) {
 			throw new InvalidRuleError(issues);
