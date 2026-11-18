@@ -14,9 +14,13 @@ Rules are often authored outside the application code, so the engine treats them
 
 - a rule (transform, condition or formula) that executes JavaScript or reaches Node.js APIs,
 - a rule that pollutes prototypes or changes objects outside its own result,
-- a rule that blocks the process despite a configured `timeout`.
+- a rule that blocks the process despite a configured `timeout`, other than the known limitation below.
 
 Functions passed as `bindings` are trusted application code and are out of scope.
+
+### Known limitation of `timeout`
+
+The timeout is checked between the steps of a JSONata formula. It cannot interrupt a single operation that is slow on its own: a regular expression with catastrophic backtracking (in a formula or in a sift `$regex` condition, which is not time-limited) or `$sort` on a very large array. If rule authors are not trusted, run the engine in a worker thread or a separate process that you can terminate.
 
 ## Reporting a vulnerability
 

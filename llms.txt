@@ -71,7 +71,7 @@ RunResult: `executionId: string` (UUID), `results: TResults`, `matched: string[]
 
 - sift `$where` is disabled (it would run JavaScript). JSONata cannot reach Node.js APIs.
 - Formulas cannot redefine `$clone` or use `$eval` (code `UNSAFE_FORMULA`): the transform operator would otherwise modify the caller's payload and bindings.
-- Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever.
+- Set `timeout` when rules come from users or a database: recursive JSONata formulas can run forever. The timeout is checked between formula steps and cannot interrupt one slow operation (catastrophic regex in a formula or a sift `$regex` condition, `$sort` of a huge array); for untrusted rule authors also run the engine in a worker or process you can stop.
 - Bindings are trusted application code.
 
 ## Links
